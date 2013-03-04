@@ -7,7 +7,7 @@
 
 ;; ======================================================================
 (defn init-window
-  [width height title]
+  [width height title shader-filename]
   (let [pixel-format (PixelFormat.)
         context-attributes (-> (ContextAttribs. 3 2)
                                (.withForwardCompatible true)
@@ -23,10 +23,11 @@
                        :vbo-id 0
                        :vboi-id 0
                        :indices-count 0
-                       ;; shader program ids
+                       ;; shader program
+                       :shader-filename shader-filename
                        :vs-id 0
                        :fs-id 0
-                       :p-id 0
+                       :pgm-id 0
                        ;; shader program uniform
                        :i-resolution-loc 0
                        :i-global-time-loc 0}))
@@ -87,24 +88,23 @@
        "}\n"
        ))
 
-(def fs-shader
-  (str "#version 150 core\n"
-       "\n"
-       "uniform vec3      iResolution;\n"
-       "uniform float     iGlobalTime;\n" 
-       ;;"uniform float     iChannelTime[4];\n"
-       ;;"uniform vec4      iMouse;\n"
-       ;;"uniform sampler2D iChannel[4];\n"
-       ;;"uniform vec4      iDate;\n"
-       "out vec4 o_FragColor;\n"
-       "\n"
-       "void main(void) {\n"
-       "  vec2 vUV = (gl_FragCoord.xy / iResolution.xy);\n"
-       "  vec4 c = vec4(vUV, sin(iGlobalTime), 1.0);\n"
-       "  o_FragColor = c;\n"
-       "}\n"
-       ))
-                     
+(defn slurp-shadertoy
+  "do whatever it takes to modify shadertoy fragment shader source to
+  be useable"
+  [filename]
+  (let [file-str (slurp filename)
+        file-str (.replace file-str "gl_FragColor" "o_FragColor")
+        file-str (str "#version 150 core\n"
+                      "uniform vec3      iResolution;\n"
+                      "uniform float     iGlobalTime;\n" 
+                      ;;TODO "uniform float     iChannelTime[4];\n"
+                      ;;TODO "uniform vec4      iMouse;\n"
+                      ;;TODO "uniform sampler2D iChannel[4];\n"
+                      ;;TODO "uniform vec4      iDate;\n"
+                      "out vec4 o_FragColor;\n\n" ; silly opengl shenanigans
+                      file-str)]
+    file-str))
+                      
 (defn load-shader
   [shader-str shader-type]
   (let [shader-id (GL20/glCreateShader shader-type)
@@ -120,24 +120,26 @@
 (defn init-shaders
   []
   (let [vs-id (load-shader vs-shader GL20/GL_VERTEX_SHADER)
+        ;; TODO monitor filename for changes
+        fs-shader (slurp-shadertoy (:shader-filename @globals))
         fs-id (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
-        p-id (GL20/glCreateProgram)
-        _ (GL20/glAttachShader p-id vs-id)
-        _ (GL20/glAttachShader p-id fs-id)
-        _ (GL20/glLinkProgram p-id)
-        gl-link-status (GL20/glGetShaderi p-id GL20/GL_LINK_STATUS)
+        pgm-id (GL20/glCreateProgram)
+        _ (GL20/glAttachShader pgm-id vs-id)
+        _ (GL20/glAttachShader pgm-id fs-id)
+        _ (GL20/glLinkProgram pgm-id)
+        gl-link-status (GL20/glGetShaderi pgm-id GL20/GL_LINK_STATUS)
         _ (when (== gl-link-status GL11/GL_FALSE)
             (println "ERROR: Linking Shaders:")
-            (println (GL20/glGetProgramInfoLog p-id 10000)))
-        i-resolution-loc (GL20/glGetUniformLocation p-id "iResolution")
-        i-global-time-loc (GL20/glGetUniformLocation p-id "iGlobalTime")
+            (println (GL20/glGetProgramInfoLog pgm-id 10000)))
+        i-resolution-loc (GL20/glGetUniformLocation pgm-id "iResolution")
+        i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
         ;; FIXME add rest of uniforms
         ]
     (dosync (ref-set globals
                      (assoc @globals
                        :vs-id vs-id
                        :fs-id fs-id
-                       :p-id p-id
+                       :pgm-id pgm-id
                        :i-resolution-loc i-resolution-loc
                        :i-global-time-loc i-global-time-loc 
                        )))))
@@ -159,7 +161,7 @@
   []
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
-                p-id vao-id vboi-id
+                pgm-id vao-id vboi-id
                 indices-count]} @globals
                 w2 (/ width 2.0)
                 h2 (/ height 2.0)
@@ -167,7 +169,7 @@
     
     (GL11/glClear (bit-or GL11/GL_COLOR_BUFFER_BIT  GL11/GL_DEPTH_BUFFER_BIT))
 
-    (GL20/glUseProgram p-id)
+    (GL20/glUseProgram pgm-id)
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
     (GL20/glUniform1f i-global-time-loc cur-time)
@@ -197,22 +199,21 @@
 
 (defn destroy-gl
   []
-  (let [{:keys [p-id vs-id fs-id vao-id vbo-id vboi-id]} @globals]
+  (let [{:keys [pgm-id vs-id fs-id vao-id vbo-id vboi-id]} @globals]
     ;; Delete the shaders
     (GL20/glUseProgram 0)
-    (GL20/glDetachShader p-id vs-id)
-    (GL20/glDetachShader p-id fs-id)
+    (GL20/glDetachShader pgm-id vs-id)
+    (GL20/glDetachShader pgm-id fs-id)
  
     (GL20/glDeleteShader vs-id)
     (GL20/glDeleteShader fs-id)
-    (GL20/glDeleteProgram p-id)
+    (GL20/glDeleteProgram pgm-id)
  
     ;; Select the VAO
     (GL30/glBindVertexArray vao-id)
  
     ;; Disable the VBO index from the VAO attributes list
     (GL20/glDisableVertexAttribArray 0)
-    (GL20/glDisableVertexAttribArray 1)
  
     ;; Delete the vertex VBO
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
@@ -228,10 +229,9 @@
     ))
 
 (defn run
-  []
-  (init-window 800 600 "shadertone")
+  [width height shader-filename]
+  (init-window width height "shadertone" shader-filename)
   (init-gl)
-  (Thread/sleep 2000)
   (while (not (Display/isCloseRequested))
     (update)
     (Display/update)
@@ -239,7 +239,10 @@
   (destroy-gl)
   (Display/destroy))
 
-(defn start-run-thread []
-  (.start (Thread. run)))
+(defn start-run-thread [width height shader-filename]
+  ;; FIXME -- find a more clojure-tastic way
+  (.start (Thread.
+           (fn [] (run width height shader-filename)))))
 
-;; (start-run-thread)
+;; (start-run-thread 800 800 "shaders/simple.glsl")
+;; (start-run-thread 800 800 "shaders/quasicrystal.glsl")
