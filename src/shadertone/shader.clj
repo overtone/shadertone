@@ -9,6 +9,9 @@
            (org.lwjgl.util.glu GLU)))
 
 ;; ======================================================================
+(def globals (ref {:active :no}))
+
+;; ======================================================================
 (defn init-window
   [width height title shader-filename]
   (let [pixel-format (PixelFormat.)
@@ -16,7 +19,7 @@
                                (.withForwardCompatible true)
                                (.withProfileCore true))
         current-time-millis (System/currentTimeMillis)]
-    (def globals (ref {:running false
+    (def globals (ref {:active :yes  ;; :yes / :stop / :no
                        :width width
                        :height height
                        :title title
@@ -247,17 +250,26 @@
   [width height shader-filename]
   (init-window width height "shadertone" shader-filename)
   (init-gl)
-  (while (not (Display/isCloseRequested))
+  (while (and (= :yes (:active @globals))
+              (not (Display/isCloseRequested)))
     (update)
     (Display/update)
     (Display/sync 60))
   (destroy-gl)
-  (Display/destroy))
+  (Display/destroy)
+  (dosync (ref-set globals (assoc @globals :active :no))))
 
 (defn start-run-thread [width height shader-filename]
-  ;; FIXME -- find a more clojure-tastic way
-  (.start (Thread.
-           (fn [] (run width height shader-filename)))))
+  (let [inactive? (= :no (:active @globals))]
+    ;; stop the current shader
+    (when (not inactive?)
+      (dosync (ref-set globals (assoc @globals :active :stop)))
+      (while (not= :no (:active @globals))
+        (Thread/sleep 100)))
+    ;; start the requested shader
+    ;; FIXME -- find a more clojure-tastic way
+    (.start (Thread.
+             (fn [] (run width height shader-filename))))))
 
 ;; (start-run-thread 800 800 "shaders/simple.glsl")
 ;; (start-run-thread 800 800 "shaders/quasicrystal.glsl")

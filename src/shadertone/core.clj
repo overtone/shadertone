@@ -27,8 +27,6 @@
   (ctl g :pre-amp 6.0 :distort 0.0 :lp-freq 5000)
 
   ;; try some other visualizations
-  ;; for now, close shader window before starting another thread
-  ;; if you don't ogl will complain.
   (s/start-run-thread 800 800 "shaders/sine_dance.glsl")
   (s/start-run-thread 800 800 "shaders/quasicrystal.glsl")
   )
