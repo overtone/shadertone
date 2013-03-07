@@ -1,8 +1,11 @@
 (ns shadertone.shader
-  (:require [clojure.pprint :as pprint])
+  (:require [clojure.pprint :as pprint]
+            [shadertone.voltap :as voltap])
   (:import (java.nio ByteBuffer FloatBuffer)
            (org.lwjgl BufferUtils)
-           (org.lwjgl.opengl ContextAttribs Display DisplayMode GL11 GL15 GL20 GL30 PixelFormat)
+           (org.lwjgl.opengl ContextAttribs Display DisplayMode
+                             GL11 GL15 GL20 GL30
+                             PixelFormat)
            (org.lwjgl.util.glu GLU)))
 
 ;; ======================================================================
@@ -13,7 +16,8 @@
                                (.withForwardCompatible true)
                                (.withProfileCore true))
         current-time-millis (System/currentTimeMillis)]
-    (def globals (ref {:width width
+    (def globals (ref {:running false
+                       :width width
                        :height height
                        :title title
                        :start-time current-time-millis
@@ -30,7 +34,8 @@
                        :pgm-id 0
                        ;; shader program uniform
                        :i-resolution-loc 0
-                       :i-global-time-loc 0}))
+                       :i-global-time-loc 0
+                       :i-overtone-volume-loc 0}))
     (Display/setDisplayMode (DisplayMode. width height))
     (Display/setTitle title)
     (Display/create pixel-format context-attributes)))
@@ -101,7 +106,9 @@
                       ;;TODO "uniform vec4      iMouse;\n"
                       ;;TODO "uniform sampler2D iChannel[4];\n"
                       ;;TODO "uniform vec4      iDate;\n"
-                      "out vec4 o_FragColor;\n\n" ; silly opengl shenanigans
+                      "uniform float     iOvertoneVolume;\n"
+                      ;; silly opengl shenanigans
+                      "out vec4 o_FragColor;\n\n" 
                       file-str)]
     file-str))
                       
@@ -120,7 +127,7 @@
 (defn init-shaders
   []
   (let [vs-id (load-shader vs-shader GL20/GL_VERTEX_SHADER)
-        ;; TODO monitor filename for changes
+        ;; TODO monitor filename for changes.  see https://gist.github.com/bjconlan/1397109
         fs-shader (slurp-shadertoy (:shader-filename @globals))
         fs-id (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         pgm-id (GL20/glCreateProgram)
@@ -133,6 +140,7 @@
             (println (GL20/glGetProgramInfoLog pgm-id 10000)))
         i-resolution-loc (GL20/glGetUniformLocation pgm-id "iResolution")
         i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+        i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")
         ;; FIXME add rest of uniforms
         ]
     (dosync (ref-set globals
@@ -141,7 +149,8 @@
                        :fs-id fs-id
                        :pgm-id pgm-id
                        :i-resolution-loc i-resolution-loc
-                       :i-global-time-loc i-global-time-loc 
+                       :i-global-time-loc i-global-time-loc
+                       :i-overtone-volume-loc i-overtone-volume-loc
                        )))))
 
 (defn init-gl
@@ -161,11 +170,13 @@
   []
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
+                i-overtone-volume-loc
                 pgm-id vao-id vboi-id
                 indices-count]} @globals
-                w2 (/ width 2.0)
-                h2 (/ height 2.0)
-                cur-time (/ (- last-time start-time) 1000.0)]
+                cur-time (/ (- last-time start-time) 1000.0)
+                cur-volume @(get-in voltap/v [:taps "system-vol"])
+                ;;_ (println "cur-volume" cur-volume)
+                ]
     
     (GL11/glClear (bit-or GL11/GL_COLOR_BUFFER_BIT  GL11/GL_DEPTH_BUFFER_BIT))
 
@@ -173,6 +184,7 @@
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
     (GL20/glUniform1f i-global-time-loc cur-time)
+    (GL20/glUniform1f i-overtone-volume-loc cur-volume)
     ;; Bind to the VAO that has all the information about the
     ;; vertices
     (GL30/glBindVertexArray vao-id)

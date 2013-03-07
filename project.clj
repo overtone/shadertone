@@ -6,4 +6,6 @@
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.lwjgl.lwjgl/lwjgl "2.8.5"]
                  [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
-                 [org.lwjgl.lwjgl/lwjgl-platform "2.8.5" :classifier "natives-osx"]])
+                 [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
+                  :classifier "natives-osx"]
+                 [overtone "0.9.0-SNAPSHOT"]])
