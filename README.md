@@ -4,9 +4,13 @@ A Clojure library designed to mix Overtone and www.shadertoy.com GLSL shaders.
 
 ## Usage
 
+Under Construction.
+See src/shadertone/core.clj 
+
 ### Building
 
-To link in natives, until Leiningen gets better...do this for your platform.
+To link in natives for LWJGL, until Leiningen gets better...do this
+for your platform after running `lein deps`.
 
 ### Mac 
 ```bash
@@ -25,17 +29,21 @@ To link in natives, until Leiningen gets better...do this for your platform.
 ### Using
 
 Hopefully, just copy over any www.shadertoy.com shader, load it and use
-Overtone to create audio as input.  lein swank or lein repl away...
+Overtone to create some audio as input.  lein swank or lein repl away...
 
 ### Shader Inputs
 
+From www.shadertoy.com:
 uniform vec3      iResolution;     // viewport resolution (in pixels)
 uniform float     iGlobalTime;     // shader playback time (in seconds)
-uniform float     iChannelTime[4]; // channel playback time (in seconds)
-uniform vec4      iMouse;          // mouse pixel coords. xy: current 
-                                   // (if MLB down), zw: click
-uniform sampler2D iChannel[4];
-uniform vec4      iDate;           // (year, month, day, time in seconds)
+TODO uniform float     iChannelTime[4]; // channel playback time (in seconds)
+TODO uniform vec4      iMouse;          // mouse pixel coords. xy: current 
+                                        // (if MLB down), zw: click
+TODO uniform sampler2D iChannel[4];
+TODO uniform vec4      iDate;           // (year, month, day, time in seconds)
+
+Extras:
+uniform float iOvertoneVolume; // tap of system volume
 
 ## License
 
