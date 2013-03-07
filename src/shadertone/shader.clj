@@ -42,6 +42,7 @@
     (Display/setDisplayMode (DisplayMode. width height))
     (Display/setTitle title)
     (Display/setVSyncEnabled true)
+    (Display/setLocation 0 0)
     (Display/create pixel-format context-attributes)))
 
 (defn init-buffers
