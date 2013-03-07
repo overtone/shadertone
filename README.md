@@ -1,6 +1,8 @@
 # shadertone
 
-A Clojure library designed to mix [Overtone](https://github.com/overtone/overtone) and [Shadertoy](http://www.shadertoy.com) GLSL shaders.
+A Clojure library designed to mix
+[Overtone](https://github.com/overtone/overtone) Musical Synthesis and
+[Shadertoy](http://www.shadertoy.com) GLSL shaders.
 
 ## Usage
 
