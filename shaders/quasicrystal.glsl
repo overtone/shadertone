@@ -17,7 +17,8 @@ const int symmetry = 13;
 
 float adj(float n, float m)
 {
-    return scale * ((2.0 * n / (m-1.0)) - 1.0);
+    float v = clamp(1.0 - 5.0*iOvertoneVolume, 0.1, 1.0);
+    return v * scale * ((2.0 * n / (m-1.0)) - 1.0);
 }
 
 vec2 point(vec2 src)
