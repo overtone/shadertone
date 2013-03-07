@@ -6,6 +6,7 @@ A Clojure library designed to mix Overtone and www.shadertoy.com GLSL shaders.
 
 Under Construction.
 See src/shadertone/core.clj 
+See https://www.youtube.com/watch?v=UMg8Td5Gqhk
 
 ### Building
 
