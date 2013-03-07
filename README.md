@@ -34,6 +34,7 @@ Overtone to create some audio as input.  lein swank or lein repl away...
 ### Shader Inputs
 
 From www.shadertoy.com:
+```
 uniform vec3      iResolution;     // viewport resolution (in pixels)
 uniform float     iGlobalTime;     // shader playback time (in seconds)
 TODO uniform float     iChannelTime[4]; // channel playback time (in seconds)
@@ -41,9 +42,11 @@ TODO uniform vec4      iMouse;          // mouse pixel coords. xy: current
                                         // (if MLB down), zw: click
 TODO uniform sampler2D iChannel[4];
 TODO uniform vec4      iDate;           // (year, month, day, time in seconds)
-
+```
 Extras:
+```
 uniform float iOvertoneVolume; // tap of system volume
+```
 
 ## License
 
