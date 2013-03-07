@@ -38,6 +38,7 @@
                        :i-overtone-volume-loc 0}))
     (Display/setDisplayMode (DisplayMode. width height))
     (Display/setTitle title)
+    (Display/setVSyncEnabled true)
     (Display/create pixel-format context-attributes)))
 
 (defn init-buffers
@@ -174,7 +175,9 @@
                 pgm-id vao-id vboi-id
                 indices-count]} @globals
                 cur-time (/ (- last-time start-time) 1000.0)
-                cur-volume @(get-in voltap/v [:taps "system-vol"])
+                cur-volume (try
+                             (float @(get-in voltap/v [:taps "system-vol"]))
+                             (catch Exception e 0.0))
                 ;;_ (println "cur-volume" cur-volume)
                 ]
     
