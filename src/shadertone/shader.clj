@@ -1,6 +1,7 @@
 (ns shadertone.shader
   (:require [clojure.pprint :as pprint]
-            [shadertone.voltap :as voltap])
+            [shadertone.voltap :as voltap]
+            [watchtower.core :as watcher])
   (:import (java.nio ByteBuffer FloatBuffer)
            (org.lwjgl BufferUtils)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
@@ -274,3 +275,18 @@
 
 ;; (start-run-thread 800 800 "shaders/simple.glsl")
 ;; (start-run-thread 800 800 "shaders/quasicrystal.glsl")
+
+(defn if-match-reload
+  [files]
+  (doseq [f files]
+    (when (= (.getPath f) (:shader-filename @globals))
+      (println "I'd reload" (.getPath f)))))
+
+(watcher/watcher
+ ["shaders/"]
+ (watcher/rate 100)
+ (watcher/file-filter watcher/ignore-dotfiles)
+ (watcher/file-filter (watcher/extensions :glsl))
+ (watcher/on-change #(if-match-reload %)))
+              
+                 

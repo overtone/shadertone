@@ -8,4 +8,5 @@
                  [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
                  [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
                   :classifier "natives-osx"]
-                 [overtone "0.9.0-SNAPSHOT"]])
+                 [overtone "0.9.0-SNAPSHOT"]
+                 [watchtower "0.1.1"]])
