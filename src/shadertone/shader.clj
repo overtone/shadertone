@@ -36,6 +36,7 @@
                        :vs-id 0
                        :fs-id 0
                        :pgm-id 0
+                       :reload-shader false
                        ;; shader program uniform
                        :i-resolution-loc 0
                        :i-global-time-loc 0
@@ -133,8 +134,8 @@
 (defn init-shaders
   []
   (let [vs-id (load-shader vs-shader GL20/GL_VERTEX_SHADER)
-        ;; TODO monitor filename for changes.  see https://gist.github.com/bjconlan/1397109
         fs-shader (slurp-shadertoy (:shader-filename @globals))
+        _ (println "Loading" (:shader-filename @globals))
         fs-id (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         pgm-id (GL20/glCreateProgram)
         _ (GL20/glAttachShader pgm-id vs-id)
@@ -172,19 +173,46 @@
     ;;(println "")
     ))
 
+(defn try-reload-shader
+  []
+  (let [{:keys [vs-id shader-filename]} @globals
+        fs-shader (slurp-shadertoy shader-filename)
+        fs-id (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
+        pgm-id (GL20/glCreateProgram)
+        _ (GL20/glAttachShader pgm-id vs-id)
+        _ (GL20/glAttachShader pgm-id fs-id)
+        _ (GL20/glLinkProgram pgm-id)
+        gl-link-status (GL20/glGetShaderi pgm-id GL20/GL_LINK_STATUS)
+        ]
+    (if (== gl-link-status GL11/GL_FALSE)
+      (do
+        (println "ERROR: Linking Shaders:")
+        (println (GL20/glGetProgramInfoLog pgm-id 10000))
+        (dosync (ref-set globals (assoc @globals
+                                   :reload-shader false))))
+      (do
+        (println "Reloading" shader-filename)
+        (dosync (ref-set globals
+                         (assoc @globals
+                           :fs-id fs-id
+                           :pgm-id pgm-id
+                           :reload-shader false)))))))
+
 (defn draw
   []
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
                 i-overtone-volume-loc
                 pgm-id vao-id vboi-id
-                indices-count]} @globals
+                indices-count reload-shader]} @globals
                 cur-time (/ (- last-time start-time) 1000.0)
                 cur-volume (try
                              (float @(get-in voltap/v [:taps "system-vol"]))
                              (catch Exception e 0.0))
                 ;;_ (println "cur-volume" cur-volume)
                 ]
+    (if reload-shader
+      (try-reload-shader))
     
     (GL11/glClear (bit-or GL11/GL_COLOR_BUFFER_BIT  GL11/GL_DEPTH_BUFFER_BIT))
 
@@ -276,17 +304,18 @@
 ;; (start-run-thread 800 800 "shaders/simple.glsl")
 ;; (start-run-thread 800 800 "shaders/quasicrystal.glsl")
 
-(defn if-match-reload
+(defn if-match-reload-shader
   [files]
   (doseq [f files]
     (when (= (.getPath f) (:shader-filename @globals))
-      (println "I'd reload" (.getPath f)))))
+      ;; set a flag that the opengl thread will use
+      (dosync (ref-set globals (assoc @globals :reload-shader true))))))
 
 (watcher/watcher
  ["shaders/"]
  (watcher/rate 100)
  (watcher/file-filter watcher/ignore-dotfiles)
  (watcher/file-filter (watcher/extensions :glsl))
- (watcher/on-change #(if-match-reload %)))
+ (watcher/on-change #(if-match-reload-shader %)))
               
                  
