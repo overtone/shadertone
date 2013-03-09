@@ -10,33 +10,45 @@
            (org.lwjgl.util.glu GLU)))
 
 ;; ======================================================================
-(def globals (ref {:active :no}))   ;; States are: :yes, :stop, :no
+;; State Variables
+;; The globals atom is for use in the gl thread
+(defonce globals (atom {:active                :no  ;; :yes/:stop/:no
+                        :width                 0
+                        :height                0
+                        :title                 ""
+                        :start-time            0
+                        :last-time             0
+                        ;; geom ids
+                        :vbo-id                0
+                        :vertices-count        0
+                        ;; shader program
+                        :shader-filename       ""
+                        :vs-id                 0
+                        :fs-id                 0
+                        :pgm-id                0
+                        ;; shader program uniform
+                        :i-resolution-loc      0
+                        :i-global-time-loc     0
+                        :i-overtone-volume-loc 0
+                        }))
+;; The reload-shader ref communicates across the gl & watcher threads
+(defonce reload-shader (ref false))      
 
 ;; ======================================================================
 (defn init-window
   [width height title shader-filename]
   (let [pixel-format (PixelFormat.)
-        context-attributes (-> (ContextAttribs. 2 1))
+        context-attributes (-> (ContextAttribs. 2 1)) ;; GL2.1
         current-time-millis (System/currentTimeMillis)]
-    (def globals (ref {:active :yes
-                       :width width
-                       :height height
-                       :title title
-                       :start-time current-time-millis
-                       :last-time current-time-millis
-                       ;; geom ids
-                       :vbo-id 0
-                       :vertices-count 0
-                       ;; shader program
-                       :shader-filename shader-filename
-                       :vs-id 0
-                       :fs-id 0
-                       :pgm-id 0
-                       :reload-shader false
-                       ;; shader program uniform
-                       :i-resolution-loc 0
-                       :i-global-time-loc 0
-                       :i-overtone-volume-loc 0}))
+    (swap! globals
+           assoc
+           :active          :yes
+           :width           width
+           :height          height
+           :title           title
+           :start-time      current-time-millis
+           :last-time       current-time-millis
+           :shader-filename shader-filename)
     (Display/setDisplayMode (DisplayMode. width height))
     (Display/setTitle title)
     (Display/setVSyncEnabled true)
@@ -45,27 +57,28 @@
 
 (defn init-buffers
   []
-  (let [vertices (float-array
-                  [-1.0 -1.0 0.0 1.0
-                    1.0 -1.0 0.0 1.0
-                   -1.0  1.0 0.0 1.0
-                   -1.0  1.0 0.0 1.0
-                    1.0 -1.0 0.0 1.0
-                    1.0  1.0 0.0 1.0])
+  (let [vertices        (float-array
+                         [-1.0 -1.0 0.0 1.0
+                           1.0 -1.0 0.0 1.0
+                          -1.0  1.0 0.0 1.0
+                          -1.0  1.0 0.0 1.0
+                           1.0 -1.0 0.0 1.0
+                           1.0  1.0 0.0 1.0])
         vertices-buffer (-> (BufferUtils/createFloatBuffer (count vertices))
                             (.put vertices)
                             (.flip))
-        vertices-count (count vertices) ;; FIXME
-        vbo-id (GL15/glGenBuffers)
-        _ (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
-        _ (GL15/glBufferData GL15/GL_ARRAY_BUFFER vertices-buffer GL15/GL_STATIC_DRAW)
+        vertices-count  (count vertices) ;; FIXME
+        vbo-id          (GL15/glGenBuffers)
+        _               (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
+        _               (GL15/glBufferData GL15/GL_ARRAY_BUFFER
+                                           vertices-buffer
+                                           GL15/GL_STATIC_DRAW)
         ;;_ (println "init-buffers errors?" (GL11/glGetError))
         ]
-    (dosync (ref-set globals
-                     (assoc @globals
-                       :vbo-id vbo-id
-                       ;;:vboi-id vboi-id
-                       :vertices-count vertices-count)))))
+    (swap! globals
+           assoc
+           :vbo-id vbo-id
+           :vertices-count vertices-count)))
 
 (def vs-shader
   (str "#version 120\n"
@@ -80,7 +93,6 @@
   be useable"
   [filename]
   (let [file-str (slurp filename)
-        ;;file-str (.replace file-str "gl_FragColor" "o_FragColor")
         file-str (str "#version 120\n"
                       "uniform vec3      iResolution;\n"
                       "uniform float     iGlobalTime;\n" 
@@ -95,44 +107,42 @@
                       
 (defn load-shader
   [shader-str shader-type]
-  (let [shader-id (GL20/glCreateShader shader-type)
-        _ (GL20/glShaderSource shader-id shader-str)
-        _ (GL20/glCompileShader shader-id)
-        gl-compile-status (GL20/glGetShaderi shader-id GL20/GL_COMPILE_STATUS)
-        _ (when (== gl-compile-status GL11/GL_FALSE)
-            (println "ERROR: Loading a Shader:")
-            (println (GL20/glGetShaderInfoLog shader-id 10000)))
-        ]
+  (let [shader-id         (GL20/glCreateShader shader-type)
+        _                 (GL20/glShaderSource shader-id shader-str)
+        _                 (GL20/glCompileShader shader-id)
+        gl-compile-status (GL20/glGetShaderi shader-id GL20/GL_COMPILE_STATUS)]
+    (when (== gl-compile-status GL11/GL_FALSE)
+      (println "ERROR: Loading a Shader:")
+      (println (GL20/glGetShaderInfoLog shader-id 10000)))
     shader-id))
 
 (defn init-shaders
   []
-  (let [vs-id (load-shader vs-shader GL20/GL_VERTEX_SHADER)
-        fs-shader (slurp-fs (:shader-filename @globals))
-        _ (println "Loading" (:shader-filename @globals))
-        fs-id (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
-        pgm-id (GL20/glCreateProgram)
-        _ (GL20/glAttachShader pgm-id vs-id)
-        _ (GL20/glAttachShader pgm-id fs-id)
-        _ (GL20/glLinkProgram pgm-id)
-        gl-link-status (GL20/glGetShaderi pgm-id GL20/GL_LINK_STATUS)
-        _ (when (== gl-link-status GL11/GL_FALSE)
-            (println "ERROR: Linking Shaders:")
-            (println (GL20/glGetProgramInfoLog pgm-id 10000)))
-        i-resolution-loc (GL20/glGetUniformLocation pgm-id "iResolution")
-        i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+  (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
+        fs-shader             (slurp-fs (:shader-filename @globals))
+        _                     (println "Loading" (:shader-filename @globals))
+        fs-id                 (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
+        pgm-id                (GL20/glCreateProgram)
+        _                     (GL20/glAttachShader pgm-id vs-id)
+        _                     (GL20/glAttachShader pgm-id fs-id)
+        _                     (GL20/glLinkProgram pgm-id)
+        gl-link-status        (GL20/glGetShaderi pgm-id GL20/GL_LINK_STATUS)
+        _                     (when (== gl-link-status GL11/GL_FALSE)
+                                (println "ERROR: Linking Shaders:")
+                                (println (GL20/glGetProgramInfoLog pgm-id 10000)))
+        i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
+        i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
         i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")
         ;; FIXME add rest of uniforms
         ]
-    (dosync (ref-set globals
-                     (assoc @globals
-                       :vs-id vs-id
-                       :fs-id fs-id
-                       :pgm-id pgm-id
-                       :i-resolution-loc i-resolution-loc
-                       :i-global-time-loc i-global-time-loc
-                       :i-overtone-volume-loc i-overtone-volume-loc
-                       )))))
+    (swap! globals
+           assoc
+           :vs-id vs-id
+           :fs-id fs-id
+           :pgm-id pgm-id
+           :i-resolution-loc i-resolution-loc
+           :i-global-time-loc i-global-time-loc
+           :i-overtone-volume-loc i-overtone-volume-loc)))
 
 (defn init-gl
   []
@@ -150,21 +160,19 @@
 (defn try-reload-shader
   []
   (let [{:keys [vs-id fs-id pgm-id shader-filename]} @globals
-        fs-shader (slurp-fs shader-filename)
-        new-fs-id (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
-        new-pgm-id (GL20/glCreateProgram)
-        _ (GL20/glAttachShader new-pgm-id vs-id)
-        _ (GL20/glAttachShader new-pgm-id new-fs-id)
-        _ (GL20/glLinkProgram new-pgm-id)
-        gl-link-status (GL20/glGetShaderi new-pgm-id GL20/GL_LINK_STATUS)
-        ]
+        fs-shader      (slurp-fs shader-filename)
+        new-fs-id      (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
+        new-pgm-id     (GL20/glCreateProgram)
+        _              (GL20/glAttachShader new-pgm-id vs-id)
+        _              (GL20/glAttachShader new-pgm-id new-fs-id)
+        _              (GL20/glLinkProgram new-pgm-id)
+        gl-link-status (GL20/glGetShaderi new-pgm-id GL20/GL_LINK_STATUS)]
+    (dosync (ref-set reload-shader false))
     (if (== gl-link-status GL11/GL_FALSE)
       (do
         (println "ERROR: Linking Shaders:")
         (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
-        (GL20/glUseProgram pgm-id)
-        (dosync (ref-set globals (assoc @globals
-                                   :reload-shader false))))
+        (GL20/glUseProgram pgm-id))
       (let [_ (println "Reloading" shader-filename)
             i-resolution-loc (GL20/glGetUniformLocation pgm-id "iResolution")
             i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
@@ -174,14 +182,13 @@
         (GL20/glDetachShader pgm-id vs-id)
         (GL20/glDetachShader pgm-id fs-id)
         (GL20/glDeleteShader fs-id)
-        (dosync (ref-set globals
-                         (assoc @globals
-                           :fs-id new-fs-id
-                           :pgm-id new-pgm-id
-                           :reload-shader false
-                           :i-resolution-loc i-resolution-loc
-                           :i-global-time-loc i-global-time-loc
-                           :i-overtone-volume-loc i-overtone-volume-loc)))))))
+        (swap! globals
+               assoc
+               :fs-id new-fs-id
+               :pgm-id new-pgm-id
+               :i-resolution-loc i-resolution-loc
+               :i-global-time-loc i-global-time-loc
+               :i-overtone-volume-loc i-overtone-volume-loc)))))
 
 (defn draw
   []
@@ -189,15 +196,13 @@
                 start-time last-time i-global-time-loc
                 i-overtone-volume-loc
                 pgm-id vbo-id
-                vertices-count reload-shader
+                vertices-count
                 old-pgm-id old-fs-id]} @globals
                 cur-time (/ (- last-time start-time) 1000.0)
                 cur-volume (try
                              (float @(get-in voltap/v [:taps "system-vol"]))
-                             (catch Exception e 0.0))
-                ;;_ (println "cur-volume" cur-volume)
-                ]
-    (if reload-shader
+                             (catch Exception e 0.0))]
+    (if @reload-shader
       (try-reload-shader)         ; this must call glUseProgram
       (GL20/glUseProgram pgm-id)) ; else, normal path...
 
@@ -223,7 +228,7 @@
   []
   (let [{:keys [width height last-time]} @globals
         cur-time (System/currentTimeMillis)]
-    (dosync (ref-set globals (assoc @globals :last-time cur-time)))
+    (swap! globals assoc :last-time cur-time)
     (draw)))
 
 (defn destroy-gl
@@ -252,13 +257,13 @@
     (Display/sync 60))
   (destroy-gl)
   (Display/destroy)
-  (dosync (ref-set globals (assoc @globals :active :no))))
+  (swap! globals assoc :active :no))
 
 (defn start-run-thread [width height shader-filename]
   (let [inactive? (= :no (:active @globals))]
     ;; stop the current shader
     (when (not inactive?)
-      (dosync (ref-set globals (assoc @globals :active :stop)))
+      (swap! globals assoc :active :stop)
       (while (not= :no (:active @globals))
         (Thread/sleep 100)))
     ;; start the requested shader
@@ -272,7 +277,7 @@
   (doseq [f files]
     (when (= (.getPath f) (:shader-filename @globals))
       ;; set a flag that the opengl thread will use
-      (dosync (ref-set globals (assoc @globals :reload-shader true))))))
+      (dosync (ref-set reload-shader true)))))
 
 (watcher/watcher
  ["shaders/"]
