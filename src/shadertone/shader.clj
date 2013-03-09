@@ -5,7 +5,7 @@
   (:import (java.nio ByteBuffer FloatBuffer)
            (org.lwjgl BufferUtils)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
-                             GL11 GL15 GL20 GL30
+                             GL11 GL15 GL20 
                              PixelFormat)
            (org.lwjgl.util.glu GLU)))
 
@@ -16,9 +16,7 @@
 (defn init-window
   [width height title shader-filename]
   (let [pixel-format (PixelFormat.)
-        context-attributes (-> (ContextAttribs. 3 2)
-                               (.withForwardCompatible true)
-                               (.withProfileCore true))
+        context-attributes (-> (ContextAttribs. 2 1))
         current-time-millis (System/currentTimeMillis)]
     (def globals (ref {:active :yes  ;; :yes / :stop / :no
                        :width width
@@ -53,47 +51,50 @@
                   [-1.0 -1.0 0.0 1.0
                     1.0 -1.0 0.0 1.0
                    -1.0  1.0 0.0 1.0
+                   -1.0  1.0 0.0 1.0
                     1.0 -1.0 0.0 1.0
                     1.0  1.0 0.0 1.0])
         vertices-buffer (-> (BufferUtils/createFloatBuffer (count vertices))
                             (.put vertices)
                             (.flip))
-        indices (byte-array
-                 (map byte
-                      [0 1 2  2 3 4]))
-        indices-count (count indices)
-        indices-buffer (-> (BufferUtils/createByteBuffer indices-count)
-                           (.put indices)
-                           (.flip))
+        ;;indices (byte-array
+        ;;         (map byte
+        ;;              [0 1 2  2 3 4]))
+        indices-count (count vertices) ;; FIXME
+        ;;indices-buffer (-> (BufferUtils/createByteBuffer indices-count)
+        ;;                   (.put indices)
+        ;;                   (.flip))
         ;; create & bind Vertex Array Object
-        vao-id (GL30/glGenVertexArrays)
-        _ (GL30/glBindVertexArray vao-id)
+        ;;vao-id (GL20/glGenVertexArrays) ;; FIXME
+        ;;_ (GL20/glBindVertexArray vao-id) ;; FIXME
         ;; create & bind Vertex Buffer Object for vertices
         vbo-id (GL15/glGenBuffers)
         _ (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
         _ (GL15/glBufferData GL15/GL_ARRAY_BUFFER vertices-buffer GL15/GL_STATIC_DRAW)
-        _ (GL20/glVertexAttribPointer 0 4 GL11/GL_FLOAT false 0 0)
-        _ (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
+        ;;_ (GL20/glVertexAttribPointer 0 4 GL11/GL_FLOAT false 0 0)
+        ;;_ (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
         ;; deselect the VAO
-        _ (GL30/glBindVertexArray 0)
+        ;;_ (GL20/glBindVertexArray 0) ;; FIXME
         ;; create & bind VBO for indices
-        vboi-id (GL15/glGenBuffers)
-        _ (GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER vboi-id)
-        _ (GL15/glBufferData GL15/GL_ELEMENT_ARRAY_BUFFER indices-buffer GL15/GL_STATIC_DRAW)
-        _ (GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER 0)
+        ;;vboi-id (GL15/glGenBuffers)
+        ;;_ (GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER vboi-id)
+        ;;_ (GL15/glBufferData GL15/GL_ELEMENT_ARRAY_BUFFER indices-buffer GL15/GL_STATIC_DRAW)
+        ;;_ (GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER 0)
         ;;_ (println "init-buffers errors?" (GL11/glGetError))
         ]
     (dosync (ref-set globals
                      (assoc @globals
-                       :vao-id vao-id
+                       ;;:vao-id vao-id
                        :vbo-id vbo-id
-                       :vboi-id vboi-id
+                       ;;:vboi-id vboi-id
                        :indices-count indices-count)))))
 
 (def vs-shader
-  (str "#version 150 core\n"
-       "\n"
-       "in vec4 in_Position;\n"
+  (str "#version 120\n"
+       ;;"#version 150 core\n"
+       ;;"\n"
+       ;;"in vec4 in_Position;\n"
+       "attribute vec4 in_Position;\n"
        "\n"
        "void main(void) {\n"
        "    gl_Position = in_Position;\n"
@@ -105,8 +106,9 @@
   be useable"
   [filename]
   (let [file-str (slurp filename)
-        file-str (.replace file-str "gl_FragColor" "o_FragColor")
-        file-str (str "#version 150 core\n"
+        ;;file-str (.replace file-str "gl_FragColor" "o_FragColor")
+        file-str (str "#version 120\n"
+                      ;;"#version 150 core\n"
                       "uniform vec3      iResolution;\n"
                       "uniform float     iGlobalTime;\n" 
                       ;;TODO "uniform float     iChannelTime[4];\n"
@@ -115,7 +117,7 @@
                       ;;TODO "uniform vec4      iDate;\n"
                       "uniform float     iOvertoneVolume;\n"
                       ;; silly opengl shenanigans
-                      "out vec4 o_FragColor;\n\n" 
+                      ;;"out vec4 o_FragColor;\n\n" 
                       file-str)]
     file-str))
                       
@@ -203,7 +205,7 @@
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
                 i-overtone-volume-loc
-                pgm-id vao-id vboi-id
+                pgm-id vbo-id
                 indices-count reload-shader]} @globals
                 cur-time (/ (- last-time start-time) 1000.0)
                 cur-volume (try
@@ -223,17 +225,24 @@
     (GL20/glUniform1f i-overtone-volume-loc cur-volume)
     ;; Bind to the VAO that has all the information about the
     ;; vertices
-    (GL30/glBindVertexArray vao-id)
-    (GL20/glEnableVertexAttribArray 0)
+    ;;(GL20/glBindVertexArray vao-id) ;; FIXME
+    ;;(GL20/glEnableVertexAttribArray 0)
     ;; Bind to the index VBO that has all the information about the
     ;; order of the vertices
-    (GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER vboi-id)
+    ;;(GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER vboi-id)
+    ;;
+    (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
+    (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
+    (GL11/glVertexPointer 4 GL11/GL_FLOAT 0 0)
     ;; Draw the vertices
-    (GL11/glDrawElements GL11/GL_TRIANGLES indices-count GL11/GL_UNSIGNED_BYTE 0)
+    ;;(GL11/glDrawElements GL11/GL_TRIANGLES indices-count GL11/GL_UNSIGNED_BYTE 0)
+    (GL11/glDrawArrays GL11/GL_TRIANGLES 0 indices-count)
     ;; Put everything back to default (deselect)
-    (GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER 0)
-    (GL20/glDisableVertexAttribArray 0)
-    (GL30/glBindVertexArray 0)
+    ;;(GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER 0)
+    ;;(GL20/glDisableVertexAttribArray 0)
+    ;;(GL20/glBindVertexArray 0) ;; FIXME
+    (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
+    (GL11/glDisableClientState GL11/GL_VERTEX_ARRAY)
     (GL20/glUseProgram 0)
     ;;(println "draw errors?" (GL11/glGetError))
     ))
@@ -258,22 +267,22 @@
     (GL20/glDeleteProgram pgm-id)
  
     ;; Select the VAO
-    (GL30/glBindVertexArray vao-id)
+    ;;(GL20/glBindVertexArray vao-id) ;; FIXME
  
     ;; Disable the VBO index from the VAO attributes list
-    (GL20/glDisableVertexAttribArray 0)
+    ;;(GL20/glDisableVertexAttribArray 0)
  
     ;; Delete the vertex VBO
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
     (GL15/glDeleteBuffers vbo-id)
  
     ;; Delete the index VBO
-    (GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER 0)
-    (GL15/glDeleteBuffers vboi-id)
+    ;;(GL15/glBindBuffer GL15/GL_ELEMENT_ARRAY_BUFFER 0)
+    ;;(GL15/glDeleteBuffers vboi-id)
  
     ;; Delete the VAO
-    (GL30/glBindVertexArray 0)
-    (GL30/glDeleteVertexArrays vao-id)
+    ;;(GL20/glBindVertexArray 0) ;; FIXME
+    ;;(GL20/glDeleteVertexArrays vao-id) ;; FIXME
     ))
 
 (defn run
