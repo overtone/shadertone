@@ -35,10 +35,40 @@
 (defonce reload-shader (ref false))
 
 ;; ======================================================================
-(defn init-window
-  [width height title shader-filename]
-  (let [pixel-format (PixelFormat.)
-        context-attributes (-> (ContextAttribs. 2 1)) ;; GL2.1
+
+(defn display-modes
+  "Returns a seq of display modes sorted by resolution size with highest
+   resolution first and lowest last."
+  []
+  (sort (fn [a b]
+          (let [res-a       (* (.getWidth a)
+                               (.getHeight a))
+                res-b       (* (.getWidth b)
+                               (.getHeight b))
+                bit-depth-a (.getBitsPerPixel a)
+                bit-depth-b (.getBitsPerPixel b) ]
+            (if (= res-a res-b)
+              (> bit-depth-a bit-depth-b)
+              (> res-a res-b))))
+        (Display/getAvailableDisplayModes)))
+
+(defn fullscreen-display-modes
+  "Returns a seq of fullscreen compatible display modes sorted by
+   resolution size with highest resolution first and lowest last."
+  []
+  (filter #(.isFullscreenCapable %) (display-modes)))
+
+(defn init-window-with-display-mode
+  "Initialise a shader-powered window with the specified
+   display-mode. If fullscreen? is true, fullscreen mode is attempted if
+   the display-mode is compatible. See display-modes for a list of
+   available modes and fullscreen-display-modes for a list of fullscreen
+   compatible modes.."
+  [display-mode title shader-filename fullscreen?]
+  (let [width               (.getWidth display-mode)
+        height              (.getHeight display-mode)
+        pixel-format        (PixelFormat.)
+        context-attributes  (-> (ContextAttribs. 2 1)) ;; GL2.1
         current-time-millis (System/currentTimeMillis)]
     (swap! globals
            assoc
@@ -49,11 +79,23 @@
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename)
-    (Display/setDisplayMode (DisplayMode. width height))
+    (Display/setDisplayMode display-mode)
+    (when fullscreen?
+      (Display/setFullscreen true))
     (Display/setTitle title)
     (Display/setVSyncEnabled true)
     (Display/setLocation 0 0)
     (Display/create pixel-format context-attributes)))
+
+(defn init-window
+  ([width height title shader-filename]
+     (init-window-with-display-mode
+       (DisplayMode. width height)
+       title
+       shader-filename
+       false))
+
+)
 
 (defn init-buffers
   []
