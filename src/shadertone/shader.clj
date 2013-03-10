@@ -5,7 +5,7 @@
   (:import (java.nio ByteBuffer FloatBuffer)
            (org.lwjgl BufferUtils)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
-                             GL11 GL15 GL20 
+                             GL11 GL15 GL20
                              PixelFormat)
            (org.lwjgl.util.glu GLU)))
 
@@ -32,13 +32,43 @@
                         :i-overtone-volume-loc 0
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
-(defonce reload-shader (ref false))      
+(defonce reload-shader (ref false))
 
 ;; ======================================================================
-(defn init-window
-  [width height title shader-filename]
-  (let [pixel-format (PixelFormat.)
-        context-attributes (-> (ContextAttribs. 2 1)) ;; GL2.1
+
+(defn display-modes
+  "Returns a seq of display modes sorted by resolution size with highest
+   resolution first and lowest last."
+  []
+  (sort (fn [a b]
+          (let [res-a       (* (.getWidth a)
+                               (.getHeight a))
+                res-b       (* (.getWidth b)
+                               (.getHeight b))
+                bit-depth-a (.getBitsPerPixel a)
+                bit-depth-b (.getBitsPerPixel b) ]
+            (if (= res-a res-b)
+              (> bit-depth-a bit-depth-b)
+              (> res-a res-b))))
+        (Display/getAvailableDisplayModes)))
+
+(defn fullscreen-display-modes
+  "Returns a seq of fullscreen compatible display modes sorted by
+   resolution size with highest resolution first and lowest last."
+  []
+  (filter #(.isFullscreenCapable %) (display-modes)))
+
+(defn init-window-with-display-mode
+  "Initialise a shader-powered window with the specified
+   display-mode. If fullscreen? is true, fullscreen mode is attempted if
+   the display-mode is compatible. See display-modes for a list of
+   available modes and fullscreen-display-modes for a list of fullscreen
+   compatible modes.."
+  [display-mode title shader-filename fullscreen?]
+  (let [width               (.getWidth display-mode)
+        height              (.getHeight display-mode)
+        pixel-format        (PixelFormat.)
+        context-attributes  (-> (ContextAttribs. 2 1)) ;; GL2.1
         current-time-millis (System/currentTimeMillis)]
     (swap! globals
            assoc
@@ -49,11 +79,21 @@
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename)
-    (Display/setDisplayMode (DisplayMode. width height))
+    (Display/setDisplayMode display-mode)
+    (when fullscreen?
+      (Display/setFullscreen true))
     (Display/setTitle title)
     (Display/setVSyncEnabled true)
     (Display/setLocation 0 0)
     (Display/create pixel-format context-attributes)))
+
+(defn init-window
+  ([width height title shader-filename]
+     (init-window-with-display-mode
+       (DisplayMode. width height)
+       title
+       shader-filename
+       false)))
 
 (defn init-buffers
   []
@@ -85,8 +125,7 @@
        "attribute vec4 in_Position;\n"
        "void main(void) {\n"
        "    gl_Position = in_Position;\n"
-       "}\n"
-       ))
+       "}\n"))
 
 (defn slurp-fs
   "do whatever it takes to modify shadertoy fragment shader source to
@@ -95,7 +134,7 @@
   (let [file-str (slurp filename)
         file-str (str "#version 120\n"
                       "uniform vec3      iResolution;\n"
-                      "uniform float     iGlobalTime;\n" 
+                      "uniform float     iGlobalTime;\n"
                       ;;TODO "uniform float     iChannelTime[4];\n"
                       ;;TODO "uniform vec4      iMouse;\n"
                       ;;TODO "uniform sampler2D iChannel[4];\n"
@@ -104,7 +143,7 @@
                       "\n"
                       file-str)]
     file-str))
-                      
+
 (defn load-shader
   [shader-str shader-type]
   (let [shader-id         (GL20/glCreateShader shader-type)
@@ -178,7 +217,7 @@
             i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
             i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")]
         (GL20/glUseProgram new-pgm-id)
-        ;; cleanup the old program 
+        ;; cleanup the old program
         (GL20/glDetachShader pgm-id vs-id)
         (GL20/glDetachShader pgm-id fs-id)
         (GL20/glDeleteShader fs-id)
@@ -200,7 +239,7 @@
                 old-pgm-id old-fs-id]} @globals
                 cur-time (/ (- last-time start-time) 1000.0)
                 cur-volume (try
-                             (float @(get-in voltap/v [:taps "system-vol"]))
+                             (float @(get-in voltap/voltap-synth [:taps "system-vol"]))
                              (catch Exception e 0.0))]
     (if @reload-shader
       (try-reload-shader)         ; this must call glUseProgram
@@ -243,8 +282,7 @@
     (GL20/glDeleteProgram pgm-id)
     ;; Delete the vertex VBO
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
-    (GL15/glDeleteBuffers vbo-id)
-    ))
+    (GL15/glDeleteBuffers vbo-id)))
 
 (defn run
   [width height shader-filename]
@@ -279,11 +317,10 @@
       ;; set a flag that the opengl thread will use
       (dosync (ref-set reload-shader true)))))
 
-(watcher/watcher
- ["shaders/"]
- (watcher/rate 100)
- (watcher/file-filter watcher/ignore-dotfiles)
- (watcher/file-filter (watcher/extensions :glsl))
- (watcher/on-change #(if-match-reload-shader %)))
-              
-                 
+(defonce __WATCH-SHADERS-FILE__
+  (watcher/watcher
+   ["shaders/"]
+   (watcher/rate 100)
+   (watcher/file-filter watcher/ignore-dotfiles)
+   (watcher/file-filter (watcher/extensions :glsl))
+   (watcher/on-change #(if-match-reload-shader %))))
