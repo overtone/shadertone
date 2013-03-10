@@ -3,6 +3,7 @@
             [shadertone.voltap :as voltap]
             [watchtower.core :as watcher])
   (:import (java.nio ByteBuffer FloatBuffer)
+           (java.util Calendar)
            (org.lwjgl BufferUtils)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
                              GL11 GL15 GL20
@@ -29,6 +30,7 @@
                         ;; shader program uniform
                         :i-resolution-loc      0
                         :i-global-time-loc     0
+                        :i-date-loc            0
                         :i-overtone-volume-loc 0
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
@@ -138,7 +140,7 @@
                       ;;TODO "uniform float     iChannelTime[4];\n"
                       ;;TODO "uniform vec4      iMouse;\n"
                       ;;TODO "uniform sampler2D iChannel[4];\n"
-                      ;;TODO "uniform vec4      iDate;\n"
+                      "uniform vec4      iDate;\n"
                       "uniform float     iOvertoneVolume;\n"
                       "\n"
                       file-str)]
@@ -171,6 +173,7 @@
                                 (println (GL20/glGetProgramInfoLog pgm-id 10000)))
         i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
         i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+        i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
         i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")
         ;; FIXME add rest of uniforms
         ]
@@ -181,6 +184,7 @@
            :pgm-id pgm-id
            :i-resolution-loc i-resolution-loc
            :i-global-time-loc i-global-time-loc
+           :i-date-loc i-date-loc
            :i-overtone-volume-loc i-overtone-volume-loc)))
 
 (defn init-gl
@@ -215,6 +219,7 @@
       (let [_ (println "Reloading" shader-filename)
             i-resolution-loc (GL20/glGetUniformLocation pgm-id "iResolution")
             i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+            i-date-loc (GL20/glGetUniformLocation pgm-id "iDate")
             i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")]
         (GL20/glUseProgram new-pgm-id)
         ;; cleanup the old program
@@ -227,20 +232,30 @@
                :pgm-id new-pgm-id
                :i-resolution-loc i-resolution-loc
                :i-global-time-loc i-global-time-loc
+               :i-date-loc i-date-loc
                :i-overtone-volume-loc i-overtone-volume-loc)))))
 
 (defn draw
   []
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
+                i-date-loc
                 i-overtone-volume-loc
                 pgm-id vbo-id
                 vertices-count
                 old-pgm-id old-fs-id]} @globals
-                cur-time (/ (- last-time start-time) 1000.0)
-                cur-volume (try
-                             (float @(get-in voltap/voltap-synth [:taps "system-vol"]))
-                             (catch Exception e 0.0))]
+        cur-time    (/ (- last-time start-time) 1000.0)
+        cur-date    (Calendar/getInstance)
+        cur-year    (.get cur-date Calendar/YEAR)         ;; four digit year
+        cur-month   (.get cur-date Calendar/MONTH)        ;; month 0-11
+        cur-day     (.get cur-date Calendar/DAY_OF_MONTH) ;; day 1-31
+        cur-seconds (+ (* (.get cur-date Calendar/HOUR_OF_DAY) 60.0 60.0)
+                       (* (.get cur-date Calendar/MINUTE) 60.0)
+                       (.get cur-date Calendar/SECOND))
+        cur-volume  (try
+                      (float @(get-in voltap/voltap-synth
+                                      [:taps "system-vol"]))
+                      (catch Exception e 0.0))]
     (if @reload-shader
       (try-reload-shader)         ; this must call glUseProgram
       (GL20/glUseProgram pgm-id)) ; else, normal path...
@@ -249,6 +264,7 @@
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
     (GL20/glUniform1f i-global-time-loc cur-time)
+    (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     (GL20/glUniform1f i-overtone-volume-loc cur-volume)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)

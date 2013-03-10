@@ -24,4 +24,6 @@
   ;; try some other visualizations
   (s/start-run-thread 800 800 "shaders/sine_dance.glsl")
   (s/start-run-thread 800 800 "shaders/quasicrystal.glsl")
+
+  (s/start-run-thread 800 800 "shaders/calendar.glsl")
   )
