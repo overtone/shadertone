@@ -93,9 +93,7 @@
        (DisplayMode. width height)
        title
        shader-filename
-       false))
-
-)
+       false)))
 
 (defn init-buffers
   []
@@ -241,7 +239,7 @@
                 old-pgm-id old-fs-id]} @globals
                 cur-time (/ (- last-time start-time) 1000.0)
                 cur-volume (try
-                             (float @(get-in voltap/v [:taps "system-vol"]))
+                             (float @(get-in voltap/voltap-synth [:taps "system-vol"]))
                              (catch Exception e 0.0))]
     (if @reload-shader
       (try-reload-shader)         ; this must call glUseProgram

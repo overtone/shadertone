@@ -1,19 +1,17 @@
-(ns shadertone.core)
+(ns shadertone.core
+  (:use [overtone.live]
+        [overtone.synth.stringed])
+  (:require [shadertone.shader :as s]))
 
 (comment
-
   ;; bring up the visualizations
-  (require '[shadertone.shader :as s])
   (s/start-run-thread 800 800 "shaders/simple.glsl")
 
   ;; now make some sounds...
-  (use 'overtone.live)
-  (use 'overtone.synth.stringed)
-  (require '[shadertone.voltap :as voltap])
   (def g (guitar))
   ;; Note: when you modify the synths, you need to re-tap the system
   ;; volume
-  (voltap/retap) 
+
   ;; strum away...
   (guitar-strum g :E :down 1.25)
   (guitar-strum g :A :up 0.25)

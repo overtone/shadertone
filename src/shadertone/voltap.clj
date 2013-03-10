@@ -8,9 +8,5 @@
 (defsynth vol []
   (tap "system-vol" 60 (lag (abs (in:ar 0)) 0.1)))
 
-(defn retap []
-  (def g (group))
-  (def v (vol :target g)))
-
-(retap)
-
+(defonce voltap-synth
+  (vol :target (foundation-monitor-group)))
