@@ -5,7 +5,7 @@
   (:import (java.nio ByteBuffer FloatBuffer)
            (org.lwjgl BufferUtils)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
-                             GL11 GL15 GL20 
+                             GL11 GL15 GL20
                              PixelFormat)
            (org.lwjgl.util.glu GLU)))
 
@@ -32,7 +32,7 @@
                         :i-overtone-volume-loc 0
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
-(defonce reload-shader (ref false))      
+(defonce reload-shader (ref false))
 
 ;; ======================================================================
 (defn init-window
@@ -85,8 +85,7 @@
        "attribute vec4 in_Position;\n"
        "void main(void) {\n"
        "    gl_Position = in_Position;\n"
-       "}\n"
-       ))
+       "}\n"))
 
 (defn slurp-fs
   "do whatever it takes to modify shadertoy fragment shader source to
@@ -95,7 +94,7 @@
   (let [file-str (slurp filename)
         file-str (str "#version 120\n"
                       "uniform vec3      iResolution;\n"
-                      "uniform float     iGlobalTime;\n" 
+                      "uniform float     iGlobalTime;\n"
                       ;;TODO "uniform float     iChannelTime[4];\n"
                       ;;TODO "uniform vec4      iMouse;\n"
                       ;;TODO "uniform sampler2D iChannel[4];\n"
@@ -104,7 +103,7 @@
                       "\n"
                       file-str)]
     file-str))
-                      
+
 (defn load-shader
   [shader-str shader-type]
   (let [shader-id         (GL20/glCreateShader shader-type)
@@ -178,7 +177,7 @@
             i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
             i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")]
         (GL20/glUseProgram new-pgm-id)
-        ;; cleanup the old program 
+        ;; cleanup the old program
         (GL20/glDetachShader pgm-id vs-id)
         (GL20/glDetachShader pgm-id fs-id)
         (GL20/glDeleteShader fs-id)
@@ -243,8 +242,7 @@
     (GL20/glDeleteProgram pgm-id)
     ;; Delete the vertex VBO
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
-    (GL15/glDeleteBuffers vbo-id)
-    ))
+    (GL15/glDeleteBuffers vbo-id)))
 
 (defn run
   [width height shader-filename]
