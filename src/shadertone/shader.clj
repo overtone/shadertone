@@ -36,29 +36,7 @@
 
 ;; ======================================================================
 
-(defn display-modes
-  "Returns a seq of display modes sorted by resolution size with highest
-   resolution first and lowest last."
-  []
-  (sort (fn [a b]
-          (let [res-a       (* (.getWidth a)
-                               (.getHeight a))
-                res-b       (* (.getWidth b)
-                               (.getHeight b))
-                bit-depth-a (.getBitsPerPixel a)
-                bit-depth-b (.getBitsPerPixel b) ]
-            (if (= res-a res-b)
-              (> bit-depth-a bit-depth-b)
-              (> res-a res-b))))
-        (Display/getAvailableDisplayModes)))
-
-(defn fullscreen-display-modes
-  "Returns a seq of fullscreen compatible display modes sorted by
-   resolution size with highest resolution first and lowest last."
-  []
-  (filter #(.isFullscreenCapable %) (display-modes)))
-
-(defn init-window-with-display-mode
+(defn- init-window-with-display-mode
   "Initialise a shader-powered window with the specified
    display-mode. If fullscreen? is true, fullscreen mode is attempted if
    the display-mode is compatible. See display-modes for a list of
@@ -87,7 +65,7 @@
     (Display/setLocation 0 0)
     (Display/create pixel-format context-attributes)))
 
-(defn init-window
+(defn- init-window
   ([width height title shader-filename]
      (init-window-with-display-mode
        (DisplayMode. width height)
@@ -95,7 +73,7 @@
        shader-filename
        false)))
 
-(defn init-buffers
+(defn- init-buffers
   []
   (let [vertices        (float-array
                          [-1.0 -1.0 0.0 1.0
@@ -127,7 +105,7 @@
        "    gl_Position = in_Position;\n"
        "}\n"))
 
-(defn slurp-fs
+(defn- slurp-fs
   "do whatever it takes to modify shadertoy fragment shader source to
   be useable"
   [filename]
@@ -144,7 +122,7 @@
                       file-str)]
     file-str))
 
-(defn load-shader
+(defn- load-shader
   [shader-str shader-type]
   (let [shader-id         (GL20/glCreateShader shader-type)
         _                 (GL20/glShaderSource shader-id shader-str)
@@ -155,7 +133,7 @@
       (println (GL20/glGetShaderInfoLog shader-id 10000)))
     shader-id))
 
-(defn init-shaders
+(defn- init-shaders
   []
   (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
         fs-shader             (slurp-fs (:shader-filename @globals))
@@ -183,7 +161,7 @@
            :i-global-time-loc i-global-time-loc
            :i-overtone-volume-loc i-overtone-volume-loc)))
 
-(defn init-gl
+(defn- init-gl
   []
   (let [{:keys [width height]} @globals]
     (println "OpenGL version:" (GL11/glGetString GL11/GL_VERSION))
@@ -196,7 +174,7 @@
     ;;(println "")
     ))
 
-(defn try-reload-shader
+(defn- try-reload-shader
   []
   (let [{:keys [vs-id fs-id pgm-id shader-filename]} @globals
         fs-shader      (slurp-fs shader-filename)
@@ -229,7 +207,7 @@
                :i-global-time-loc i-global-time-loc
                :i-overtone-volume-loc i-overtone-volume-loc)))))
 
-(defn draw
+(defn- draw
   []
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
@@ -263,14 +241,14 @@
     ;;(println "draw errors?" (GL11/glGetError))
     ))
 
-(defn update
+(defn- update
   []
   (let [{:keys [width height last-time]} @globals
         cur-time (System/currentTimeMillis)]
     (swap! globals assoc :last-time cur-time)
     (draw)))
 
-(defn destroy-gl
+(defn- destroy-gl
   []
   (let [{:keys [pgm-id vs-id fs-id vbo-id]} @globals]
     ;; Delete the shaders
@@ -284,9 +262,9 @@
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
     (GL15/glDeleteBuffers vbo-id)))
 
-(defn run
-  [width height shader-filename]
-  (init-window width height "shadertone" shader-filename)
+(defn- run-thread
+  [width height shader-filename title]
+  (init-window width height title shader-filename)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
@@ -297,20 +275,9 @@
   (Display/destroy)
   (swap! globals assoc :active :no))
 
-(defn start-run-thread [width height shader-filename]
-  (let [inactive? (= :no (:active @globals))]
-    ;; stop the current shader
-    (when (not inactive?)
-      (swap! globals assoc :active :stop)
-      (while (not= :no (:active @globals))
-        (Thread/sleep 100)))
-    ;; start the requested shader
-    ;; FIXME is there a more clojure-tastic way?
-    (.start (Thread.
-             (fn [] (run width height shader-filename))))))
 
 ;; watch the shader directory & reload the current shader if it changes.
-(defn if-match-reload-shader
+(defn- if-match-reload-shader
   [files]
   (doseq [f files]
     (when (= (.getPath f) (:shader-filename @globals))
@@ -324,3 +291,69 @@
    (watcher/file-filter watcher/ignore-dotfiles)
    (watcher/file-filter (watcher/extensions :glsl))
    (watcher/on-change #(if-match-reload-shader %))))
+
+;; Public API ===================================================
+
+(defn display-modes
+  "Returns a seq of display modes sorted by resolution size with highest
+   resolution first and lowest last."
+  []
+  (sort (fn [a b]
+          (let [res-a       (* (.getWidth a)
+                               (.getHeight a))
+                res-b       (* (.getWidth b)
+                               (.getHeight b))
+                bit-depth-a (.getBitsPerPixel a)
+                bit-depth-b (.getBitsPerPixel b) ]
+            (if (= res-a res-b)
+              (> bit-depth-a bit-depth-b)
+              (> res-a res-b))))
+        (Display/getAvailableDisplayModes)))
+
+(defn fullscreen-display-modes
+  "Returns a seq of fullscreen compatible display modes sorted by
+   resolution size with highest resolution first and lowest last."
+  []
+  (filter #(.isFullscreenCapable %) (display-modes)))
+
+(defn undecorate-display!
+  "All future display windows will be undecorated (i.e. no title bar)"
+  []
+  (System/setProperty "org.lwjgl.opengl.Window.undecorated" "true"))
+
+(defn decorate-display!
+  "All future display windows will be decorated (i.e. have a title bar)"
+  []
+  (System/setProperty "org.lwjgl.opengl.Window.undecorated" "false"))
+
+(defn inactive?
+  "Returns true if the shader display is currently inactive."
+  []
+  (let [current-activation (:active @globals)]
+    (or
+     (= :no current-activation)
+     (= :stop current-activation))))
+
+(defn active?
+  "Returns true if the shader display is currently active."
+  []
+  (not (inactive?)))
+
+(defn stop
+  "Stop and destroy the current shader display. Blocks the current
+   thread until completed."
+  []
+  (when (active?)
+    (swap! globals assoc :active :stop)
+    (while (active?)
+      (Thread/sleep 100))))
+
+(defn start
+  "Start a new shader display."
+  ([width height shader-filename] (start width height shader-filename "shadertone"))
+  ([width height shader-filename title]
+     ;; stop the current shader
+     (stop)
+     ;; start the requested shader
+     (.start (Thread.
+              (fn [] (run-thread width height shader-filename title))))))
