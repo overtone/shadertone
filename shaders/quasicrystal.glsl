@@ -17,7 +17,7 @@ const int symmetry = 13;
 
 float adj(float n, float m)
 {
-    float v = clamp(1.0 - 5.0*iOvertoneVolume, 0.1, 1.0);
+    float v = 1.0; //clamp(1.0 - 5.0*iOvertoneVolume, 0.1, 1.0);
     return v * scale * ((2.0 * n / (m-1.0)) - 1.0);
 }
 
@@ -32,7 +32,10 @@ float wave(vec2 p, float th)
     t *= 2.0 * PI;
     float sth = sin(th);
     float cth = cos(th);
-    return (cos (cth*p.x + sth*p.y + t) + 1.0) / 2.0;
+    float w = (cos (cth*p.x + sth*p.y + t) + 1.0) / 2.0;
+    // make the waves higher @ higher volumes
+    w *= clamp(10.0*iOvertoneVolume, 0.1, 2.0);
+    return w;
 }
 
 float combine(vec2 p)
@@ -56,7 +59,7 @@ void main(void)
      // clut select
      if(s<=0.25) {
          c = mix( vec4( 58.0/255.0,117.0/255.0, 78.0/255.0, 0.0), 
-		          vec4(175.0/255.0,207.0/255.0, 93.0/255.0, 0.0), 
+		  vec4(175.0/255.0,207.0/255.0, 93.0/255.0, 0.0), 
                   s*4.0 );
      } else if(s<=0.5) {
          c = mix( vec4(175.0/255.0,207.0/255.0, 93.0/255.0, 0.0), 
