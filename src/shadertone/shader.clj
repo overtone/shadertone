@@ -38,13 +38,13 @@
 
 ;; ======================================================================
 
-(defn- init-window-with-display-mode
+(defn- init-window
   "Initialise a shader-powered window with the specified
-   display-mode. If fullscreen? is true, fullscreen mode is attempted if
-   the display-mode is compatible. See display-modes for a list of
-   available modes and fullscreen-display-modes for a list of fullscreen
-   compatible modes.."
-  [display-mode title shader-filename fullscreen?]
+   display-mode. If true-fullscreen? is true, fullscreen mode is
+   attempted if the display-mode is compatible. See display-modes for a
+   list of available modes and fullscreen-display-modes for a list of
+   fullscreen compatible modes.."
+  [display-mode title shader-filename true-fullscreen?]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -60,20 +60,12 @@
            :last-time       current-time-millis
            :shader-filename shader-filename)
     (Display/setDisplayMode display-mode)
-    (when fullscreen?
+    (when true-fullscreen?
       (Display/setFullscreen true))
     (Display/setTitle title)
     (Display/setVSyncEnabled true)
     (Display/setLocation 0 0)
     (Display/create pixel-format context-attributes)))
-
-(defn- init-window
-  ([width height title shader-filename]
-     (init-window-with-display-mode
-       (DisplayMode. width height)
-       title
-       shader-filename
-       false)))
 
 (defn- init-buffers
   []
@@ -279,8 +271,8 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [width height shader-filename title]
-  (init-window width height title shader-filename)
+  [mode shader-filename title true-fullscreen?]
+  (init-window mode title shader-filename true-fullscreen?)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
@@ -289,6 +281,8 @@
     (Display/sync 60))
   (destroy-gl)
   (Display/destroy)
+  (Thread/sleep 100) ;; Is there a better way of determining whether the
+                     ;; thread has actually been destroyed yet?
   (swap! globals assoc :active :no))
 
 
@@ -342,18 +336,18 @@
   []
   (System/setProperty "org.lwjgl.opengl.Window.undecorated" "false"))
 
-(defn inactive?
-  "Returns true if the shader display is currently inactive."
-  []
-  (let [current-activation (:active @globals)]
-    (or
-     (= :no current-activation)
-     (= :stop current-activation))))
-
 (defn active?
-  "Returns true if the shader display is currently active."
+  "Returns true if the shader display is currently running"
   []
-  (not (inactive?)))
+  (= :yes (:active @globals)))
+
+(defn still-running?
+  "Returns true if the shader display is currently running i.e. not
+   active or in the process of stopping."
+  []
+  (let [active (:active @globals)]
+    (not (or (= :no active)
+             (= :stop active)))))
 
 (defn stop
   "Stop and destroy the current shader display. Blocks the current
@@ -361,15 +355,37 @@
   []
   (when (active?)
     (swap! globals assoc :active :stop)
-    (while (active?)
+    (while (still-running?)
       (Thread/sleep 100))))
 
-(defn start
-  "Start a new shader display."
-  ([width height shader-filename] (start width height shader-filename "shadertone"))
-  ([width height shader-filename title]
+(defn start-shader-display
+  "Start a new shader display with the specified mode. Prefer start or
+   start-fullscreen for simpler usage."
+  ([mode shader-filename title true-fullscreen?]
      ;; stop the current shader
      (stop)
+     (println "active?" (active?))
+     (Thread/sleep 100)
      ;; start the requested shader
      (.start (Thread.
-              (fn [] (run-thread width height shader-filename title))))))
+              (fn [] (run-thread mode shader-filename title true-fullscreen?))))))
+
+(defn start
+  "Start a new shader display. Forces the display window to be
+   decorated (i.e. have a title bar)."
+  ([width height shader-filename]
+     (start width height shader-filename "shadertone"))
+  ([width height shader-filename title]
+     (let [mode  (DisplayMode. width height)]
+       (decorate-display!)
+       (start-shader-display mode shader-filename title false))))
+
+(defn start-fullscreen
+  "Start a new shader display in pseudo fullscreen mode. This creates a
+   new borderless window which is the size of the current
+   resolution. There are therefore no OS controls for closing the shader
+   window. Use (stop) to close things manually. "
+  [shader-filename]
+  (let [mode (first (display-modes))]
+    (undecorate-display!)
+    (start-shader-display mode shader-filename "" false)))

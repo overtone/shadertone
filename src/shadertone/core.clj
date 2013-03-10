@@ -5,7 +5,10 @@
 
 (comment
   ;; bring up the visualizations
-  (s/start 800 800 "shaders/simple.glsl" "Simple")
+  (s/start 800 800 "shaders/simple.glsl" "Hello World!")
+
+  ;; or try fullscreen
+  (s/start-fullscreen "shaders/simple.glsl")
 
   ;; now make some sounds...
   (def g (guitar))
