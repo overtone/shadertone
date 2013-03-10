@@ -364,7 +364,6 @@
   ([mode shader-filename title true-fullscreen?]
      ;; stop the current shader
      (stop)
-     (println "active?" (active?))
      (Thread/sleep 100)
      ;; start the requested shader
      (.start (Thread.
