@@ -9,9 +9,6 @@
 
   ;; now make some sounds...
   (def g (guitar))
-  ;; Note: when you modify the synths, you need to re-tap the system
-  ;; volume
-
   ;; strum away...
   (guitar-strum g :E :down 1.25)
   (guitar-strum g :A :up 0.25)
@@ -28,6 +25,7 @@
   ;; try some other visualizations
   (s/start-run-thread 800 800 "shaders/sine_dance.glsl")
   (s/start-run-thread 800 800 "shaders/quasicrystal.glsl")
+  (s/start-run-thread 800 800 "shaders/calendar.glsl")
 
   ;; stop the shader display
   (s/stop)
