@@ -277,11 +277,10 @@
       ;; set a flag that the opengl thread will use
       (dosync (ref-set reload-shader true)))))
 
-(watcher/watcher
- ["shaders/"]
- (watcher/rate 100)
- (watcher/file-filter watcher/ignore-dotfiles)
- (watcher/file-filter (watcher/extensions :glsl))
- (watcher/on-change #(if-match-reload-shader %)))
-              
-                 
+(defonce __WATCH-SHADERS-FILE__
+  (watcher/watcher
+   ["shaders/"]
+   (watcher/rate 100)
+   (watcher/file-filter watcher/ignore-dotfiles)
+   (watcher/file-filter (watcher/extensions :glsl))
+   (watcher/on-change #(if-match-reload-shader %))))
