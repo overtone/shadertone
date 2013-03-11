@@ -7,7 +7,7 @@ A Clojure library designed to mix
 ## Usage
 
 Under Construction.
-See src/shadertone/core.clj 
+See src/shadertone/core.clj
 See https://www.youtube.com/watch?v=UMg8Td5Gqhk
 
 ### Building
@@ -15,7 +15,7 @@ See https://www.youtube.com/watch?v=UMg8Td5Gqhk
 To link in natives for LWJGL, until Leiningen gets better...do this
 for your platform after running `lein deps`.
 
-### Mac 
+### Mac
 ```bash
 > mkdir -p target/native/macosx/x86_64
 > cd target/native/macosx/x86_64
@@ -41,12 +41,12 @@ From www.shadertoy.com:
 uniform vec3      iResolution;     // viewport resolution (in pixels)
 uniform float     iGlobalTime;     // shader playback time (in seconds)
 TODO uniform float     iChannelTime[4]; // channel playback time (in seconds)
-TODO uniform vec4      iMouse;          // mouse pixel coords. xy: current 
+uniform vec4      iMouse;          // mouse pixel coords. xy: current
                                         // (if MLB down), zw: click
 TODO uniform sampler2D iChannel[4];
-TODO uniform vec4      iDate;           // (year, month, day, time in seconds)
+uniform vec4      iDate;           // (year, month, day, time in seconds)
 ```
-Extras:
+See code for how to add:
 ```
 uniform float iOvertoneVolume; // tap of system volume
 ```
