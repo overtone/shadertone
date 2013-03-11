@@ -1,14 +1,15 @@
 (ns shadertone.core
   (:use [overtone.live]
         [overtone.synth.stringed])
-  (:require [shadertone.shader :as s]))
+  (:require [shadertone.shader :as s]
+            [shadertone.tone :as t]))
 
 (comment
-  ;; bring up the visualizations
-  (s/start 800 800 "shaders/simple.glsl" "Hello World!")
-
-  ;; or try [pseudo-]fullscreen
-  (s/start-fullscreen "shaders/simple.glsl")
+  ;; bring up a simple visualization.
+  ;; - the red component is just a ramp
+  ;; - the green component is based on the Overtone sound volume
+  ;; - the blue component is a sinusoid based on the time.
+  (s/start 800 800 "shaders/simple.glsl" "Hello World!" t/overtone-volume)
 
   ;; now make some sounds...
   (def g (guitar))
@@ -25,10 +26,18 @@
   ;; or not...
   (ctl g :pre-amp 6.0 :distort 0.0 :lp-freq 5000)
 
-  ;; try some other visualizations
-  (s/start 800 800 "shaders/sine_dance.glsl" "Sine Dance")
-  (s/start 800 800 "shaders/quasicrystal.glsl" "Quasicrystal")
-  (s/start 800 800 "shaders/calendar.glsl")
+  ;; try some other visualizations...
+  (s/start-fullscreen "shaders/simple.glsl" t/overtone-volume)
+  (s/start 800 800
+           "shaders/sine_dance.glsl"
+           "Sine Dance"
+           t/overtone-volume)
+  (s/start 800 800
+           "shaders/quasicrystal.glsl"
+           "Quasicrystal"
+           t/overtone-volume)
+  (s/start 800 800
+           "shaders/calendar.glsl")
 
   ;; stop the shader display
   (s/stop)

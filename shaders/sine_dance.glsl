@@ -1,6 +1,7 @@
 // Doodle based on Sound Visualizer https://www.shadertoy.com/view/Xds3Rr
-// and 
-// http://vimeo.com/51993089 @ the 0min 44s mark
+// and http://vimeo.com/51993089 @ the 0min 44s mark
+// For Shadertone, tap into Overtone's volume...
+uniform float iOvertoneVolume;
 void main(void)
 {
     vec2 uv = 2.0*(gl_FragCoord.xy/iResolution.xy) - 1.0;

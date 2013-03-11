@@ -1,6 +1,5 @@
 (ns shadertone.shader
-  (:require [shadertone.voltap :as voltap]
-            [watchtower.core :as watcher])
+  (:require [watchtower.core :as watcher])
   (:import (java.nio ByteBuffer FloatBuffer)
            (java.util Calendar)
            (org.lwjgl BufferUtils)
@@ -30,7 +29,8 @@
                         :i-resolution-loc      0
                         :i-global-time-loc     0
                         :i-date-loc            0
-                        :i-overtone-volume-loc 0
+                        ;; a user draw function
+                        :user-draw-fn          nil
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
 (defonce reload-shader (ref false))
@@ -43,7 +43,7 @@
    attempted if the display-mode is compatible. See display-modes for a
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
-  [display-mode title shader-filename true-fullscreen?]
+  [display-mode title shader-filename true-fullscreen? user-draw-fn]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -57,7 +57,8 @@
            :title           title
            :start-time      current-time-millis
            :last-time       current-time-millis
-           :shader-filename shader-filename)
+           :shader-filename shader-filename
+           :user-draw-fn    user-draw-fn)
     (Display/setDisplayMode display-mode)
     (when true-fullscreen?
       (Display/setFullscreen true))
@@ -110,7 +111,6 @@
                       ;;TODO "uniform vec4      iMouse;\n"
                       ;;TODO "uniform sampler2D iChannel[4];\n"
                       "uniform vec4      iDate;\n"
-                      "uniform float     iOvertoneVolume;\n"
                       "\n"
                       file-str)]
     file-str))
@@ -143,7 +143,6 @@
         i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
         i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
         i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
-        i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")
         ;; FIXME add rest of uniforms
         ]
     (swap! globals
@@ -153,8 +152,7 @@
            :pgm-id pgm-id
            :i-resolution-loc i-resolution-loc
            :i-global-time-loc i-global-time-loc
-           :i-date-loc i-date-loc
-           :i-overtone-volume-loc i-overtone-volume-loc)))
+           :i-date-loc i-date-loc)))
 
 (defn- init-gl
   []
@@ -185,8 +183,7 @@
       (let [_ (println "Reloading" shader-filename)
             i-resolution-loc (GL20/glGetUniformLocation pgm-id "iResolution")
             i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
-            i-date-loc (GL20/glGetUniformLocation pgm-id "iDate")
-            i-overtone-volume-loc (GL20/glGetUniformLocation pgm-id "iOvertoneVolume")]
+            i-date-loc (GL20/glGetUniformLocation pgm-id "iDate")]
         (GL20/glUseProgram new-pgm-id)
         ;; cleanup the old program
         (GL20/glDetachShader pgm-id vs-id)
@@ -198,18 +195,17 @@
                :pgm-id new-pgm-id
                :i-resolution-loc i-resolution-loc
                :i-global-time-loc i-global-time-loc
-               :i-date-loc i-date-loc
-               :i-overtone-volume-loc i-overtone-volume-loc)))))
+               :i-date-loc i-date-loc)))))
 
 (defn- draw
   []
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
                 i-date-loc
-                i-overtone-volume-loc
                 pgm-id vbo-id
                 vertices-count
-                old-pgm-id old-fs-id]} @globals
+                old-pgm-id old-fs-id
+                user-draw-fn]} @globals
         cur-time    (/ (- last-time start-time) 1000.0)
         cur-date    (Calendar/getInstance)
         cur-year    (.get cur-date Calendar/YEAR)         ;; four digit year
@@ -217,21 +213,20 @@
         cur-day     (.get cur-date Calendar/DAY_OF_MONTH) ;; day 1-31
         cur-seconds (+ (* (.get cur-date Calendar/HOUR_OF_DAY) 60.0 60.0)
                        (* (.get cur-date Calendar/MINUTE) 60.0)
-                       (.get cur-date Calendar/SECOND))
-        cur-volume  (try
-                      (float @(get-in voltap/voltap-synth
-                                      [:taps "system-vol"]))
-                      (catch Exception e 0.0))]
+                       (.get cur-date Calendar/SECOND))]
     (if @reload-shader
       (try-reload-shader)         ; this must call glUseProgram
       (GL20/glUseProgram pgm-id)) ; else, normal path...
 
-    (GL11/glClear (bit-or GL11/GL_COLOR_BUFFER_BIT  GL11/GL_DEPTH_BUFFER_BIT))
+    (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
+
+    (when user-draw-fn
+      (user-draw-fn pgm-id))
+
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
     (GL20/glUniform1f i-global-time-loc cur-time)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
-    (GL20/glUniform1f i-overtone-volume-loc cur-volume)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
@@ -267,8 +262,8 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [mode shader-filename title true-fullscreen?]
-  (init-window mode title shader-filename true-fullscreen?)
+  [mode shader-filename title true-fullscreen? user-draw-fn]
+  (init-window mode title shader-filename true-fullscreen? user-draw-fn)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
@@ -352,12 +347,16 @@
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
-  ([mode shader-filename title true-fullscreen?]
+  ([mode shader-filename title true-fullscreen? user-draw-fn]
      ;; stop the current shader
      (stop)
      ;; start the requested shader
      (.start (Thread.
-              (fn [] (run-thread mode shader-filename title true-fullscreen?))))))
+              (fn [] (run-thread mode
+                                shader-filename
+                                title
+                                true-fullscreen?
+                                user-draw-fn))))))
 
 (defn start
   "Start a new shader display. Forces the display window to be
@@ -365,16 +364,20 @@
   ([width height shader-filename]
      (start width height shader-filename "shadertone"))
   ([width height shader-filename title]
+     (start width height shader-filename title nil))
+  ([width height shader-filename title user-draw-fn]
      (let [mode  (DisplayMode. width height)]
        (decorate-display!)
-       (start-shader-display mode shader-filename title false))))
+       (start-shader-display mode shader-filename title false user-draw-fn))))
 
 (defn start-fullscreen
   "Start a new shader display in pseudo fullscreen mode. This creates a
    new borderless window which is the size of the current
    resolution. There are therefore no OS controls for closing the shader
    window. Use (stop) to close things manually. "
-  [shader-filename]
-  (let [mode (first (display-modes))]
-    (undecorate-display!)
-    (start-shader-display mode shader-filename "" false)))
+  ([shader-filename]
+     (start-fullscreen nil))
+  ([shader-filename user-draw-fn]
+     (let [mode (first (display-modes))]
+       (undecorate-display!)
+       (start-shader-display mode shader-filename "" false user-draw-fn))))
