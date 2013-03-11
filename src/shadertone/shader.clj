@@ -1,6 +1,5 @@
 (ns shadertone.shader
-  (:require ;;[clojure.pprint :as pprint]
-            [shadertone.voltap :as voltap]
+  (:require [shadertone.voltap :as voltap]
             [watchtower.core :as watcher])
   (:import (java.nio ByteBuffer FloatBuffer)
            (java.util Calendar)
@@ -13,7 +12,7 @@
 ;; ======================================================================
 ;; State Variables
 ;; The globals atom is for use in the gl thread
-(defonce globals (atom {:active                :no  ;; :yes/:stop/:no
+(defonce globals (atom {:active                :no  ;; :yes/:stopping/:no
                         :width                 0
                         :height                0
                         :title                 ""
@@ -160,14 +159,11 @@
 (defn- init-gl
   []
   (let [{:keys [width height]} @globals]
-    (println "OpenGL version:" (GL11/glGetString GL11/GL_VERSION))
+    ;;(println "OpenGL version:" (GL11/glGetString GL11/GL_VERSION))
     (GL11/glClearColor 0.0 0.0 0.0 0.0)
     (GL11/glViewport 0 0 width height)
     (init-buffers)
     (init-shaders)
-    ;;(print "@globals")
-    ;;(pprint/pprint @globals)
-    ;;(println "")
     ))
 
 (defn- try-reload-shader
@@ -281,8 +277,6 @@
     (Display/sync 60))
   (destroy-gl)
   (Display/destroy)
-  (Thread/sleep 100) ;; Is there a better way of determining whether the
-                     ;; thread has actually been destroyed yet?
   (swap! globals assoc :active :no))
 
 
@@ -341,21 +335,18 @@
   []
   (= :yes (:active @globals)))
 
-(defn still-running?
-  "Returns true if the shader display is currently running i.e. not
-   active or in the process of stopping."
+(defn inactive?
+  "Returns true if the shader display is completely done running."
   []
-  (let [active (:active @globals)]
-    (not (or (= :no active)
-             (= :stop active)))))
+  (= :no (:active @globals)))
 
 (defn stop
   "Stop and destroy the current shader display. Blocks the current
    thread until completed."
   []
   (when (active?)
-    (swap! globals assoc :active :stop)
-    (while (still-running?)
+    (swap! globals assoc :active :stopping)
+    (while (not (inactive?))
       (Thread/sleep 100))))
 
 (defn start-shader-display
@@ -364,7 +355,6 @@
   ([mode shader-filename title true-fullscreen?]
      ;; stop the current shader
      (stop)
-     (Thread/sleep 100)
      ;; start the requested shader
      (.start (Thread.
               (fn [] (run-thread mode shader-filename title true-fullscreen?))))))
