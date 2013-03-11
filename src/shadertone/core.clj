@@ -36,9 +36,12 @@
            "shaders/quasicrystal.glsl"
            "Quasicrystal"
            t/overtone-volume)
-  (s/start 800 800
-           "shaders/calendar.glsl")
-
   ;; stop the shader display
   (s/stop)
   )
+
+;; some basic tests of shadertoy
+(comment
+  (s/start 800 800 "shaders/calendar.glsl")
+  (s/start 800 800 "shaders/mouse.glsl")
+)

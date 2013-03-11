@@ -3,10 +3,10 @@
   (:import (java.nio ByteBuffer FloatBuffer)
            (java.util Calendar)
            (org.lwjgl BufferUtils)
+           (org.lwjgl.input Mouse)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
                              GL11 GL15 GL20
-                             PixelFormat)
-           (org.lwjgl.util.glu GLU)))
+                             PixelFormat)))
 
 ;; ======================================================================
 ;; State Variables
@@ -17,6 +17,12 @@
                         :title                 ""
                         :start-time            0
                         :last-time             0
+                        ;; mouse
+                        :mouse-clicked         false
+                        :mouse-pos-x           0
+                        :mouse-pos-y           0
+                        :mouse-ori-x           0
+                        :mouse-ori-y           0
                         ;; geom ids
                         :vbo-id                0
                         :vertices-count        0
@@ -28,6 +34,7 @@
                         ;; shader program uniform
                         :i-resolution-loc      0
                         :i-global-time-loc     0
+                        :i-mouse-loc           0
                         :i-date-loc            0
                         ;; a user draw function
                         :user-draw-fn          nil
@@ -108,7 +115,7 @@
                       "uniform vec3      iResolution;\n"
                       "uniform float     iGlobalTime;\n"
                       ;;TODO "uniform float     iChannelTime[4];\n"
-                      ;;TODO "uniform vec4      iMouse;\n"
+                      "uniform vec4      iMouse;\n"
                       ;;TODO "uniform sampler2D iChannel[4];\n"
                       "uniform vec4      iDate;\n"
                       "\n"
@@ -142,6 +149,7 @@
                                 (println (GL20/glGetProgramInfoLog pgm-id 10000)))
         i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
         i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+        i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
         i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
         ;; FIXME add rest of uniforms
         ]
@@ -152,6 +160,7 @@
            :pgm-id pgm-id
            :i-resolution-loc i-resolution-loc
            :i-global-time-loc i-global-time-loc
+           :i-mouse-loc i-mouse-loc
            :i-date-loc i-date-loc)))
 
 (defn- init-gl
@@ -181,9 +190,10 @@
         (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
         (GL20/glUseProgram pgm-id))
       (let [_ (println "Reloading" shader-filename)
-            i-resolution-loc (GL20/glGetUniformLocation pgm-id "iResolution")
+            i-resolution-loc  (GL20/glGetUniformLocation pgm-id "iResolution")
             i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
-            i-date-loc (GL20/glGetUniformLocation pgm-id "iDate")]
+            i-mouse-loc       (GL20/glGetUniformLocation pgm-id "iMouse")
+            i-date-loc        (GL20/glGetUniformLocation pgm-id "iDate")]
         (GL20/glUseProgram new-pgm-id)
         ;; cleanup the old program
         (GL20/glDetachShader pgm-id vs-id)
@@ -195,6 +205,7 @@
                :pgm-id new-pgm-id
                :i-resolution-loc i-resolution-loc
                :i-global-time-loc i-global-time-loc
+               :i-mouse-loc i-mouse-loc
                :i-date-loc i-date-loc)))))
 
 (defn- draw
@@ -204,6 +215,9 @@
                 i-date-loc
                 pgm-id vbo-id
                 vertices-count
+                i-mouse-loc
+                mouse-pos-x mouse-pos-y
+                mouse-ori-x mouse-ori-y
                 old-pgm-id old-fs-id
                 user-draw-fn]} @globals
         cur-time    (/ (- last-time start-time) 1000.0)
@@ -226,6 +240,11 @@
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
     (GL20/glUniform1f i-global-time-loc cur-time)
+    (GL20/glUniform4f i-mouse-loc
+                      mouse-pos-x
+                      mouse-pos-y ;; ? (- height 1 mouse-pos-y)
+                      mouse-ori-x
+                      mouse-ori-y) ;; ? (- height 1 mouse-ori-y))
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
@@ -242,9 +261,31 @@
 
 (defn- update
   []
-  (let [{:keys [width height last-time]} @globals
-        cur-time (System/currentTimeMillis)]
-    (swap! globals assoc :last-time cur-time)
+  (let [{:keys [width height last-time
+                mouse-clicked mouse-ori-x mouse-ori-y]} @globals
+        cur-time (System/currentTimeMillis)
+        cur-mouse-clicked (Mouse/isButtonDown 0)
+        mouse-down-event (and cur-mouse-clicked (not mouse-clicked))
+        cur-mouse-pos-x (if cur-mouse-clicked (Mouse/getX) 0)
+        cur-mouse-pos-y (if cur-mouse-clicked (Mouse/getY) 0)
+        cur-mouse-ori-x (if mouse-down-event
+                          (Mouse/getX)
+                          (if cur-mouse-clicked
+                            mouse-ori-x
+                            0))
+        cur-mouse-ori-y (if mouse-down-event
+                          (Mouse/getY)
+                          (if cur-mouse-clicked
+                            mouse-ori-y
+                            0))]
+    (swap! globals
+           assoc
+           :last-time cur-time
+           :mouse-clicked cur-mouse-clicked
+           :mouse-pos-x cur-mouse-pos-x
+           :mouse-pos-y cur-mouse-pos-y
+           :mouse-ori-x cur-mouse-ori-x
+           :mouse-ori-y cur-mouse-ori-y)
     (draw)))
 
 (defn- destroy-gl
