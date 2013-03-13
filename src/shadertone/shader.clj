@@ -1,6 +1,6 @@
 (ns shadertone.shader
   (:require [watchtower.core :as watcher])
-  (:import (java.nio ByteBuffer FloatBuffer)
+  (:import (java.nio IntBuffer FloatBuffer)
            (java.util Calendar)
            (org.lwjgl BufferUtils)
            (org.lwjgl.input Mouse)
@@ -34,8 +34,17 @@
                         ;; shader program uniform
                         :i-resolution-loc      0
                         :i-global-time-loc     0
+                        :i-channel-time-loc    0
                         :i-mouse-loc           0
+                        :i-channel-loc         0
                         :i-date-loc            0
+                        :channel-time-buffer (-> (BufferUtils/createFloatBuffer 4)
+                                                 (.put (float-array
+                                                        [0.0 0.0 0.0 0.0]))
+                                                 (.flip))
+                        :channel-buffer      (-> (BufferUtils/createIntBuffer 4)
+                                                 (.put (int-array [0 1 2 3]))
+                                                 (.flip))
                         ;; a user draw function
                         :user-draw-fn          nil
                         }))
@@ -76,20 +85,20 @@
 
 (defn- init-buffers
   []
-  (let [vertices        (float-array
-                         [-1.0 -1.0 0.0 1.0
-                           1.0 -1.0 0.0 1.0
-                          -1.0  1.0 0.0 1.0
-                          -1.0  1.0 0.0 1.0
-                           1.0 -1.0 0.0 1.0
-                           1.0  1.0 0.0 1.0])
-        vertices-buffer (-> (BufferUtils/createFloatBuffer (count vertices))
-                            (.put vertices)
-                            (.flip))
-        vertices-count  (count vertices) ;; FIXME
-        vbo-id          (GL15/glGenBuffers)
-        _               (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
-        _               (GL15/glBufferData GL15/GL_ARRAY_BUFFER
+  (let [vertices            (float-array
+                             [-1.0 -1.0 0.0 1.0
+                               1.0 -1.0 0.0 1.0
+                              -1.0  1.0 0.0 1.0
+                              -1.0  1.0 0.0 1.0
+                               1.0 -1.0 0.0 1.0
+                               1.0  1.0 0.0 1.0])
+        vertices-buffer     (-> (BufferUtils/createFloatBuffer (count vertices))
+                                (.put vertices)
+                                (.flip))
+        vertices-count      (count vertices) ;; FIXME
+        vbo-id              (GL15/glGenBuffers)
+        _                   (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
+        _                   (GL15/glBufferData GL15/GL_ARRAY_BUFFER
                                            vertices-buffer
                                            GL15/GL_STATIC_DRAW)
         ;;_ (println "init-buffers errors?" (GL11/glGetError))
@@ -114,9 +123,9 @@
         file-str (str "#version 120\n"
                       "uniform vec3      iResolution;\n"
                       "uniform float     iGlobalTime;\n"
-                      ;;TODO "uniform float     iChannelTime[4];\n"
+                      "uniform float     iChannelTime[4];\n"
                       "uniform vec4      iMouse;\n"
-                      ;;TODO "uniform sampler2D iChannel[4];\n"
+                      "uniform sampler2D iChannel[4];\n"
                       "uniform vec4      iDate;\n"
                       "\n"
                       file-str)]
@@ -149,7 +158,9 @@
                                 (println (GL20/glGetProgramInfoLog pgm-id 10000)))
         i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
         i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+        i-channel-time-loc    (GL20/glGetUniformLocation pgm-id "iChannelTime")
         i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
+        i-channel-loc         (GL20/glGetUniformLocation pgm-id "iChannel")
         i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
         ;; FIXME add rest of uniforms
         ]
@@ -160,18 +171,21 @@
            :pgm-id pgm-id
            :i-resolution-loc i-resolution-loc
            :i-global-time-loc i-global-time-loc
+           :i-channel-time-loc i-channel-time-loc
            :i-mouse-loc i-mouse-loc
+           :i-channel-loc i-channel-loc
            :i-date-loc i-date-loc)))
 
 (defn- init-gl
   []
-  (let [{:keys [width height]} @globals]
+  (let [{:keys [width height user-draw-fn]} @globals]
     ;;(println "OpenGL version:" (GL11/glGetString GL11/GL_VERSION))
     (GL11/glClearColor 0.0 0.0 0.0 0.0)
     (GL11/glViewport 0 0 width height)
     (init-buffers)
     (init-shaders)
-    ))
+    (if user-draw-fn
+      (user-draw-fn :init 0))))
 
 (defn- try-reload-shader
   []
@@ -190,10 +204,12 @@
         (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
         (GL20/glUseProgram pgm-id))
       (let [_ (println "Reloading" shader-filename)
-            i-resolution-loc  (GL20/glGetUniformLocation pgm-id "iResolution")
-            i-global-time-loc (GL20/glGetUniformLocation pgm-id "iGlobalTime")
-            i-mouse-loc       (GL20/glGetUniformLocation pgm-id "iMouse")
-            i-date-loc        (GL20/glGetUniformLocation pgm-id "iDate")]
+            i-resolution-loc   (GL20/glGetUniformLocation pgm-id "iResolution")
+            i-global-time-loc  (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+            i-channel-time-loc (GL20/glGetUniformLocation pgm-id "iChannelTime")
+            i-mouse-loc        (GL20/glGetUniformLocation pgm-id "iMouse")
+            i-channel-loc      (GL20/glGetUniformLocation pgm-id "iChannel")
+            i-date-loc         (GL20/glGetUniformLocation pgm-id "iDate")]
         (GL20/glUseProgram new-pgm-id)
         ;; cleanup the old program
         (GL20/glDetachShader pgm-id vs-id)
@@ -205,7 +221,9 @@
                :pgm-id new-pgm-id
                :i-resolution-loc i-resolution-loc
                :i-global-time-loc i-global-time-loc
+               :i-channel-time-loc i-channel-time-loc
                :i-mouse-loc i-mouse-loc
+               :i-channel-loc i-channel-loc
                :i-date-loc i-date-loc)))))
 
 (defn- draw
@@ -218,6 +236,8 @@
                 i-mouse-loc
                 mouse-pos-x mouse-pos-y
                 mouse-ori-x mouse-ori-y
+                i-channel-time-loc i-channel-loc
+                channel-time-buffer channel-buffer
                 old-pgm-id old-fs-id
                 user-draw-fn]} @globals
         cur-time    (/ (- last-time start-time) 1000.0)
@@ -235,16 +255,26 @@
     (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
 
     (when user-draw-fn
-      (user-draw-fn pgm-id))
+      (user-draw-fn :pre-draw pgm-id))
 
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
     (GL20/glUniform1f i-global-time-loc cur-time)
+    ;; FIXME cur-time per channel
+    (GL20/glUniform1 i-channel-time-loc
+                     (-> channel-time-buffer
+                         (.put (float-array
+                                [(float cur-time)
+                                 (float cur-time)
+                                 (float cur-time)
+                                 (float cur-time)]))
+                         (.flip)))
     (GL20/glUniform4f i-mouse-loc
                       mouse-pos-x
                       mouse-pos-y ;; ? (- height 1 mouse-pos-y)
                       mouse-ori-x
                       mouse-ori-y) ;; ? (- height 1 mouse-ori-y))
+    (GL20/glUniform1 i-channel-loc channel-buffer)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)

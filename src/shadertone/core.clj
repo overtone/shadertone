@@ -5,6 +5,7 @@
             [shadertone.tone :as t]))
 
 (comment
+
   ;; bring up a simple visualization.
   ;; - the red component is just a ramp
   ;; - the green component is based on the Overtone sound volume
@@ -13,6 +14,7 @@
 
   ;; now make some sounds...
   (def g (guitar))
+  (demo (sin-osc))
   ;; strum away...
   (guitar-strum g :E :down 1.25)
   (guitar-strum g :A :up 0.25)
@@ -36,6 +38,10 @@
            "shaders/quasicrystal.glsl"
            "Quasicrystal"
            t/overtone-volume)
+  (s/start 800 800 "shaders/wave.glsl"
+           "Hello Wave!"
+           t/overtone-waveform)
+
   ;; stop the shader display
   (s/stop)
   )
