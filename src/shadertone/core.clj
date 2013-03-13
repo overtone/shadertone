@@ -14,7 +14,6 @@
 
   ;; now make some sounds...
   (def g (guitar))
-  (demo (sin-osc))
   ;; strum away...
   (guitar-strum g :E :down 1.25)
   (guitar-strum g :A :up 0.25)
@@ -41,6 +40,10 @@
   (s/start 800 800 "shaders/wave.glsl"
            "Hello Wave!"
            t/overtone-waveform)
+  ;; testcase sounds
+  (demo 5 (sin-osc 800))
+  (demo 5 (saw 400))
+  (demo 5 (square 200))
 
   ;; stop the shader display
   (s/stop)
