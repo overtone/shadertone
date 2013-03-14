@@ -5,6 +5,7 @@
         [overtone.sc defaults server synth ugens buffer node foundation-groups bus]
         [overtone.sc.cgens buf-io tap]
         [overtone.studio core util])
+  (:require [shadertone.shader :as s])
   (:import (org.lwjgl BufferUtils)
            (org.lwjgl.opengl GL11 GL12 GL13 GL20 ARBTextureRg)))
 
@@ -103,7 +104,6 @@
                                   fftwave-float-buf))
 
    :init (let [tex-id (GL11/glGenTextures)]
-           (println "init!")
            (ensure-internal-server!)
            (reset! fftwave-tex-id tex-id)
            (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
@@ -119,3 +119,30 @@
                               WAVE-BUF-SIZE 2 0 GL11/GL_RED GL11/GL_FLOAT
                               fftwave-float-buf)
            (GL11/glBindTexture GL11/GL_TEXTURE_2D 0))))
+
+;; ======================================================================
+;; Simple API
+(defn overtone-default
+  [dispatch pgm-id]
+  (overtone-volume dispatch pgm-id)
+  (overtone-waveform dispatch pgm-id))
+
+(defonce cur-user-atom-map (atom {}))
+
+(defn overtone-default-atom
+  [dispatch pgm-id]
+  (case dispatch
+    :init
+    nil
+    ;; FIXME separate into :init, etc.
+    :pre-draw
+    (doseq [key (keys @cur-user-atom-map)]
+      (let [loc (GL20/glGetUniformLocation pgm-id key)
+            val (deref (@cur-user-atom-map key))]
+        (GL20/glUniform1f loc val))))
+  (overtone-default dispatch pgm-id))
+
+(defn start
+  [width height shader-filename title user-atom-map]
+  (reset! cur-user-atom-map user-atom-map)
+  (s/start width height shader-filename title overtone-default-atom))

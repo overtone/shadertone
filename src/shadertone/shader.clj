@@ -429,6 +429,8 @@
                                 true-fullscreen?
                                 user-draw-fn))))))
 
+;; FIXME - make shader-filename the only mandatory argument.
+;; - all others should work with :argnames and good defaults
 (defn start
   "Start a new shader display. Forces the display window to be
    decorated (i.e. have a title bar)."

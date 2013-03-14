@@ -40,10 +40,22 @@
   (s/start 800 800 "shaders/wave.glsl"
            "Hello Wave!"
            t/overtone-waveform)
+  (s/start-fullscreen "shaders/wave.glsl" t/overtone-waveform)
   ;; testcase sounds
-  (demo 5 (sin-osc 800))
-  (demo 5 (saw 400))
-  (demo 5 (square 200))
+  (demo 15 (sin-osc (mouse-x 20 20000 EXP)))
+  (demo 15 (saw (mouse-x 20 20000 EXP)))
+  (demo 15 (square (mouse-x 20 20000 EXP)))
+
+  ;; overtone more-flexible api
+  (def my-float (atom 0.0))
+  (def my-other-float (atom 0.0))
+  (t/start 800 800 "shaders/hack.glsl" "Hack!"
+           { "iMyFloat"      my-float
+             "iMyOtherFloat" my-other-float })
+  (swap! my-float #(+ % 0.5))
+  (swap! my-other-float #(+ % 0.5))
+  @my-float
+  @my-other-float
 
   ;; stop the shader display
   (s/stop)
