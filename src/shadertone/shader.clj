@@ -46,7 +46,7 @@
                                                  (.put (int-array [0 1 2 3]))
                                                  (.flip))
                         ;; a user draw function
-                        :user-draw-fn          nil
+                        :user-fn             nil
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
 (defonce reload-shader (ref false))
@@ -59,7 +59,7 @@
    attempted if the display-mode is compatible. See display-modes for a
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
-  [display-mode title shader-filename true-fullscreen? user-draw-fn]
+  [display-mode title shader-filename true-fullscreen? user-fn]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -74,7 +74,7 @@
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename
-           :user-draw-fn    user-draw-fn)
+           :user-fn         user-fn)
     (Display/setDisplayMode display-mode)
     (when true-fullscreen?
       (Display/setFullscreen true))
@@ -178,18 +178,18 @@
 
 (defn- init-gl
   []
-  (let [{:keys [width height user-draw-fn]} @globals]
+  (let [{:keys [width height user-fn]} @globals]
     ;;(println "OpenGL version:" (GL11/glGetString GL11/GL_VERSION))
     (GL11/glClearColor 0.0 0.0 0.0 0.0)
     (GL11/glViewport 0 0 width height)
     (init-buffers)
     (init-shaders)
-    (if user-draw-fn
-      (user-draw-fn :init 0))))
+    (when user-fn
+      (user-fn :init (:pgm-id @globals)))))
 
 (defn- try-reload-shader
   []
-  (let [{:keys [vs-id fs-id pgm-id shader-filename]} @globals
+  (let [{:keys [vs-id fs-id pgm-id shader-filename user-fn]} @globals
         fs-shader      (slurp-fs shader-filename)
         new-fs-id      (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         new-pgm-id     (GL20/glCreateProgram)
@@ -211,6 +211,8 @@
             i-channel-loc      (GL20/glGetUniformLocation pgm-id "iChannel")
             i-date-loc         (GL20/glGetUniformLocation pgm-id "iDate")]
         (GL20/glUseProgram new-pgm-id)
+        (when user-fn
+          (user-fn :init new-pgm-id))
         ;; cleanup the old program
         (GL20/glDetachShader pgm-id vs-id)
         (GL20/glDetachShader pgm-id fs-id)
@@ -239,7 +241,7 @@
                 i-channel-time-loc i-channel-loc
                 channel-time-buffer channel-buffer
                 old-pgm-id old-fs-id
-                user-draw-fn]} @globals
+                user-fn]} @globals
         cur-time    (/ (- last-time start-time) 1000.0)
         cur-date    (Calendar/getInstance)
         cur-year    (.get cur-date Calendar/YEAR)         ;; four digit year
@@ -254,8 +256,8 @@
 
     (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
 
-    (when user-draw-fn
-      (user-draw-fn :pre-draw pgm-id))
+    (when user-fn
+      (user-fn :pre-draw pgm-id))
 
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
@@ -285,6 +287,10 @@
     ;; Put everything back to default (deselect)
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
     (GL11/glDisableClientState GL11/GL_VERTEX_ARRAY)
+
+    (when user-fn
+      (user-fn :post-draw pgm-id))
+
     (GL20/glUseProgram 0)
     ;;(println "draw errors?" (GL11/glGetError))
     ))
@@ -320,7 +326,10 @@
 
 (defn- destroy-gl
   []
-  (let [{:keys [pgm-id vs-id fs-id vbo-id]} @globals]
+  (let [{:keys [pgm-id vs-id fs-id vbo-id user-fn]} @globals]
+    ;; Delete any user state
+    (when user-fn
+      (user-fn :destroy pgm-id))
     ;; Delete the shaders
     (GL20/glUseProgram 0)
     (GL20/glDetachShader pgm-id vs-id)
@@ -333,8 +342,8 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [mode shader-filename title true-fullscreen? user-draw-fn]
-  (init-window mode title shader-filename true-fullscreen? user-draw-fn)
+  [mode shader-filename title true-fullscreen? user-fn]
+  (init-window mode title shader-filename true-fullscreen? user-fn)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
@@ -418,7 +427,7 @@
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
-  ([mode shader-filename title true-fullscreen? user-draw-fn]
+  ([mode shader-filename title true-fullscreen? user-fn]
      ;; stop the current shader
      (stop)
      ;; start the requested shader
@@ -427,30 +436,29 @@
                                 shader-filename
                                 title
                                 true-fullscreen?
-                                user-draw-fn))))))
+                                user-fn))))))
 
-;; FIXME - make shader-filename the only mandatory argument.
-;; - all others should work with :argnames and good defaults
 (defn start
   "Start a new shader display. Forces the display window to be
    decorated (i.e. have a title bar)."
-  ([width height shader-filename]
-     (start width height shader-filename "shadertone"))
-  ([width height shader-filename title]
-     (start width height shader-filename title nil))
-  ([width height shader-filename title user-draw-fn]
-     (let [mode  (DisplayMode. width height)]
+  ([shader-filename
+    &{:keys [width height title user-fn]
+      :or {width   600
+           height  600
+           title   "shadertone"
+           user-fn nil}}]
+     (let [mode (DisplayMode. width height)]
        (decorate-display!)
-       (start-shader-display mode shader-filename title false user-draw-fn))))
+       (start-shader-display mode shader-filename title false user-fn))))
 
 (defn start-fullscreen
   "Start a new shader display in pseudo fullscreen mode. This creates a
    new borderless window which is the size of the current
    resolution. There are therefore no OS controls for closing the shader
    window. Use (stop) to close things manually. "
-  ([shader-filename]
-     (start-fullscreen nil))
-  ([shader-filename user-draw-fn]
+  ([shader-filename
+    &{:keys [user-fn]
+      :or {user-fn nil}}]
      (let [mode (first (display-modes))]
        (undecorate-display!)
-       (start-shader-display mode shader-filename "" false user-draw-fn))))
+       (start-shader-display mode shader-filename "" false user-fn))))

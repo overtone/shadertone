@@ -1,8 +1,7 @@
 (ns shadertone.core
   (:use [overtone.live]
         [overtone.synth.stringed])
-  (:require [shadertone.shader :as s]
-            [shadertone.tone :as t]))
+  (:require [shadertone.tone :as t]))
 
 (comment
 
@@ -10,7 +9,7 @@
   ;; - the red component is just a ramp
   ;; - the green component is based on the Overtone sound volume
   ;; - the blue component is a sinusoid based on the time.
-  (s/start 800 800 "shaders/simple.glsl" "Hello World!" t/overtone-volume)
+  (t/start "shaders/simple.glsl")
 
   ;; now make some sounds...
   (def g (guitar))
@@ -24,45 +23,40 @@
        :pre-amp 5.0 :distort 0.76
        :lp-freq 2000 :lp-rq 0.25
        :rvb-mix 0.5 :rvb-room 0.7 :rvb-damp 0.4)
-  ;; or not...
-  (ctl g :pre-amp 6.0 :distort 0.0 :lp-freq 5000)
 
   ;; try some other visualizations...
-  (s/start-fullscreen "shaders/simple.glsl" t/overtone-volume)
-  (s/start 800 800
-           "shaders/sine_dance.glsl"
-           "Sine Dance"
-           t/overtone-volume)
-  (s/start 800 800
-           "shaders/quasicrystal.glsl"
-           "Quasicrystal"
-           t/overtone-volume)
-  (s/start 800 800 "shaders/wave.glsl"
-           "Hello Wave!"
-           t/overtone-waveform)
-  (s/start-fullscreen "shaders/wave.glsl" t/overtone-waveform)
-  ;; testcase sounds
+  (t/start-fullscreen "shaders/simple.glsl")
+  (t/start "shaders/sine_dance.glsl"
+           :width 800 :height 800
+           :title "Sine Dance")
+  (t/start "shaders/quasicrystal.glsl")
+  (t/start "shaders/wave.glsl")
+  ;; testcase sounds for fft & wave shader (warning, a little loud)
   (demo 15 (sin-osc (mouse-x 20 20000 EXP)))
   (demo 15 (saw (mouse-x 20 20000 EXP)))
   (demo 15 (square (mouse-x 20 20000 EXP)))
 
-  ;; overtone more-flexible api
-  (def my-float (atom 0.0))
-  (def my-other-float (atom 0.0))
-  (t/start 800 800 "shaders/hack.glsl" "Hack!"
-           { "iMyFloat"      my-float
-             "iMyOtherFloat" my-other-float })
-  (swap! my-float #(+ % 0.5))
-  (swap! my-other-float #(+ % 0.5))
-  @my-float
-  @my-other-float
+  ;; user-data api.  create atoms and send them to your shader
+  ;; NOTE your shader needs to define:
+  ;;   uniform float iRed, iGreen, iBlue;
+  ;; to match the user-data map below
+  (def my-red   (atom 0.0))
+  (def my-green (atom 0.0))
+  (def my-blue  (atom 0.0))
+  (t/start "shaders/rgb.glsl"
+           :user-data { "iRed"   my-red
+                        "iGreen" my-green
+                        "iBlue"  my-blue})
+  ;; now you can adjust your data at-will and it will be sent to
+  ;; the GPU at 60Hz
+  (swap! my-red   (fn [x] 0.55))
+  (swap! my-green (fn [x] 0.95))
+  (swap! my-blue  (fn [x] 0.75))
 
   ;; stop the shader display
-  (s/stop)
-  )
+  (t/stop)
 
-;; some basic tests of shadertoy
-(comment
-  (s/start 800 800 "shaders/calendar.glsl")
-  (s/start 800 800 "shaders/mouse.glsl")
+  ;; some basic tests of shadertoy
+  (t/start "shaders/calendar.glsl")
+  (t/start "shaders/mouse.glsl")
 )
