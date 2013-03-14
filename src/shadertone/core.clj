@@ -40,7 +40,7 @@
   ;; NOTE your shader needs to define:
   ;;   uniform float iRed, iGreen, iBlue;
   ;; to match the user-data map below
-  (def my-red   (atom 0.0))
+  (def my-red   (atom 0.3))
   (def my-green (atom 0.0))
   (def my-blue  (atom 0.0))
   (t/start "shaders/rgb.glsl"
