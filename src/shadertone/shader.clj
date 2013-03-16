@@ -102,7 +102,7 @@
         vertices-buffer     (-> (BufferUtils/createFloatBuffer (count vertices))
                                 (.put vertices)
                                 (.flip))
-        vertices-count      (count vertices) ;; FIXME
+        vertices-count      (count vertices)
         vbo-id              (GL15/glGenBuffers)
         _                   (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
         _                   (GL15/glBufferData GL15/GL_ARRAY_BUFFER
@@ -169,7 +169,6 @@
         i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
         i-channel-loc         (GL20/glGetUniformLocation pgm-id "iChannel")
         i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
-        ;; FIXME add rest of uniforms
         ]
     (swap! globals
            assoc
@@ -203,7 +202,7 @@
     (let [_ (println "Loading texture:" filename)
           image (-> (FileInputStream. filename)
                     (ImageIO/read))
-          nbytes (* 3 (.getWidth image) (.getHeight image))  ;; fixme 4 or 3 depends on texture
+          nbytes (* 3 (.getWidth image) (.getHeight image))  ;; FIXME 4 or 3 depends on texture
           ;;_ (println "copying" (/ nbytes (* 1024 1024)) "Mbytes of data...")
           buffer (-> (BufferUtils/createByteBuffer nbytes)
                      (put-texture-data image)
@@ -215,7 +214,7 @@
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
                             GL11/GL_LINEAR)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MIN_FILTER
-                            GL11/GL_LINEAR) ;; FIXME mipmaps?
+                            GL11/GL_LINEAR) ;; mipmaps?
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_S
                             GL11/GL_REPEAT)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
@@ -323,9 +322,8 @@
         (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))))
 
     ;; setup our uniform
-    (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
+    (GL20/glUniform3f i-resolution-loc width height 1.0)
     (GL20/glUniform1f i-global-time-loc cur-time)
-    ;; FIXME cur-time per channel
     (GL20/glUniform1 i-channel-time-loc
                      (-> channel-time-buffer
                          (.put (float-array
@@ -336,9 +334,9 @@
                          (.flip)))
     (GL20/glUniform4f i-mouse-loc
                       mouse-pos-x
-                      mouse-pos-y ;; ? (- height 1 mouse-pos-y)
+                      mouse-pos-y
                       mouse-ori-x
-                      mouse-ori-y) ;; ? (- height 1 mouse-ori-y))
+                      mouse-ori-y)
     (GL20/glUniform1 i-channel-loc channel-buffer)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
@@ -523,19 +521,17 @@
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
   ([mode shader-filename textures title true-fullscreen? user-fn]
-     (let [sui (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)]
-       ;;(println "sui?" sui)
-       (when sui
-         ;; stop the current shader
-         (stop)
-         ;; start the requested shader
-         (.start (Thread.
-                  (fn [] (run-thread mode
+     (when (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)
+       ;; stop the current shader
+       (stop)
+       ;; start the requested shader
+       (.start (Thread.
+                (fn [] (run-thread mode
                                   shader-filename
                                   textures
                                   title
                                   true-fullscreen?
-                                  user-fn))))))))
+                                  user-fn)))))))
 
 (defn start
   "Start a new shader display. Forces the display window to be
