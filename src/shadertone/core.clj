@@ -53,12 +53,16 @@
   (swap! my-green (fn [x] 0.95))
   (swap! my-blue  (fn [x] 0.75))
 
+  ;; you can use textures now, too.
+  ;; grab some from:
+  ;;   https://www.shadertoy.com/presets/tex02.jpg
+  ;;   https://www.shadertoy.com/presets/tex07.jpg
+  (t/start "shaders/simpletex.glsl" :textures ["tex02.jpg" "tex07.jpg"])
+
   ;; stop the shader display
   (t/stop)
 
   ;; some basic tests of shadertoy
   (t/start "shaders/calendar.glsl")
   (t/start "shaders/mouse.glsl")
-  ;; you can use textures now, too.
-  (t/start "shaders/simpletex.glsl" :textures ["tex02.jpg"])
 )

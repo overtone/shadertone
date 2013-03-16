@@ -1,8 +1,8 @@
 (ns shadertone.shader
   (:require [watchtower.core :as watcher])
-  (:import (java.awt.image BufferedImage)
+  (:import (java.awt.image BufferedImage DataBuffer DataBufferByte)
            (java.io File FileInputStream)
-           (java.nio IntBuffer FloatBuffer)
+           (java.nio IntBuffer FloatBuffer ByteOrder)
            (java.util Calendar)
            (javax.imageio ImageIO)
            (org.lwjgl BufferUtils)
@@ -153,7 +153,7 @@
   []
   (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
         fs-shader             (slurp-fs (:shader-filename @globals))
-        _                     (println "Loading" (:shader-filename @globals))
+        _                     (println "Loading shader:" (:shader-filename @globals))
         fs-id                 (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         pgm-id                (GL20/glCreateProgram)
         _                     (GL20/glAttachShader pgm-id vs-id)
@@ -183,45 +183,33 @@
            :i-channel-loc i-channel-loc
            :i-date-loc i-date-loc)))
 
-;; OMFG WTF?
-(defn ubyte [val]
-   (if (>= val 128)
-     (byte (- val 256))
-     (byte val)))
-
-(defn- put-texture-pixel
-  [buffer image x y]
-  (let [pixel ^int (.getRGB image x y)] ;; TYPE_INT_ARGB
-    ;; push A/R/G/B into the buffer as R/G/B/A
-    (.put buffer (ubyte (bit-and (bit-shift-right pixel 16) 0xFF)))   ;; Red component
-    (.put buffer (ubyte (bit-and (bit-shift-right pixel 8) 0xFF)))    ;; Green component
-    (.put buffer (ubyte (bit-and pixel 0xFF)))                        ;; Blue component
-    (.put buffer (ubyte (bit-and (bit-shift-right pixel 24) 0xFF))))) ;; Alpha component ?FIXME check?
-
 (defn- put-texture-data
   "put the data from the image into the buffer and return the buffer"
   [buffer image]
-  (dotimes [y (.getHeight image)]
-    (dotimes [x (.getWidth image)]
-      (put-texture-pixel buffer image x y)))
-  buffer)
+  (let [data (byte-array ^DataBufferByte
+                         (-> (.getRaster image)
+                             (.getDataBuffer)
+                             (.getData)))
+        ;;nbytes (* 4 (.getWidth image) (.getHeight image))
+        buffer (-> buffer
+                   ;;(.order (ByteOrder/nativeOrder))
+                   (.put data 0 (alength data)))]
+    buffer))
 
-;; test url https://www.shadertoy.com/presets/tex07.jpg
 (defn- load-texture
   "load, bind texture from filename.  return tex-id.  returns nil if filename is nil"
   [filename]
   (if filename
-    (let [_ (println "loading texture" filename)
+    (let [_ (println "Loading texture:" filename)
           image (-> (FileInputStream. filename)
                     (ImageIO/read))
-          nbytes (* 4 (.getWidth image) (.getHeight image))
-          _ (println "copying" (/ nbytes (* 1024 1024)) "Mbytes of data...")
-          _ (println "FIXME: this is too slow...")
+          nbytes (* 3 (.getWidth image) (.getHeight image))  ;; fixme 4 or 3 depends on texture
+          ;;_ (println "copying" (/ nbytes (* 1024 1024)) "Mbytes of data...")
           buffer (-> (BufferUtils/createByteBuffer nbytes)
                      (put-texture-data image)
                      (.flip))
           tex-id (GL11/glGenTextures)
-          _ (println "genid" tex-id)
+          ;;_ (println "genid" tex-id)
           ]
       (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
@@ -232,9 +220,9 @@
                             GL11/GL_REPEAT)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
                             GL11/GL_REPEAT)
-      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGBA8
+      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGB8
                          (.getWidth image)  (.getHeight image) 0
-                         GL11/GL_RGBA GL11/GL_UNSIGNED_BYTE
+                         GL11/GL_RGB GL11/GL_UNSIGNED_BYTE
                          buffer)
       tex-id)))
 
@@ -271,7 +259,7 @@
         (println "ERROR: Linking Shaders:")
         (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
         (GL20/glUseProgram pgm-id))
-      (let [_ (println "Reloading" shader-filename)
+      (let [_ (println "Reloading shader:" shader-filename)
             i-resolution-loc   (GL20/glGetUniformLocation pgm-id "iResolution")
             i-global-time-loc  (GL20/glGetUniformLocation pgm-id "iGlobalTime")
             i-channel-time-loc (GL20/glGetUniformLocation pgm-id "iChannelTime")
@@ -535,7 +523,7 @@
    start-fullscreen for simpler usage."
   ([mode shader-filename textures title true-fullscreen? user-fn]
      (let [sui (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)]
-       (println "sui?" sui)
+       ;;(println "sui?" sui)
        (when sui
          ;; stop the current shader
          (stop)
