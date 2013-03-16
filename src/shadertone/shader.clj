@@ -1,43 +1,46 @@
 (ns shadertone.shader
   (:require [watchtower.core :as watcher])
-  (:import (java.nio IntBuffer FloatBuffer)
+  (:import (java.awt.image BufferedImage)
+           (java.io FileInputStream)
+           (java.nio IntBuffer FloatBuffer)
            (java.util Calendar)
+           (javax.imageio ImageIO)
            (org.lwjgl BufferUtils)
            (org.lwjgl.input Mouse)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
-                             GL11 GL15 GL20
+                             GL11 GL13 GL15 GL20
                              PixelFormat)))
 
 ;; ======================================================================
 ;; State Variables
-;; The globals atom is for use in the gl thread
-(defonce globals (atom {:active                :no  ;; :yes/:stopping/:no
-                        :width                 0
-                        :height                0
-                        :title                 ""
-                        :start-time            0
-                        :last-time             0
+;; The globals atom is a map of state variables for use in the gl thread
+(defonce globals (atom {:active              :no  ;; :yes/:stopping/:no
+                        :width               0
+                        :height              0
+                        :title               ""
+                        :start-time          0
+                        :last-time           0
                         ;; mouse
-                        :mouse-clicked         false
-                        :mouse-pos-x           0
-                        :mouse-pos-y           0
-                        :mouse-ori-x           0
-                        :mouse-ori-y           0
+                        :mouse-clicked       false
+                        :mouse-pos-x         0
+                        :mouse-pos-y         0
+                        :mouse-ori-x         0
+                        :mouse-ori-y         0
                         ;; geom ids
-                        :vbo-id                0
-                        :vertices-count        0
+                        :vbo-id              0
+                        :vertices-count      0
                         ;; shader program
-                        :shader-filename       ""
-                        :vs-id                 0
-                        :fs-id                 0
-                        :pgm-id                0
-                        ;; shader program uniform
-                        :i-resolution-loc      0
-                        :i-global-time-loc     0
-                        :i-channel-time-loc    0
-                        :i-mouse-loc           0
-                        :i-channel-loc         0
-                        :i-date-loc            0
+                        :shader-filename     ""
+                        :vs-id               0
+                        :fs-id               0
+                        :pgm-id              0
+                        ;; shader uniforms
+                        :i-resolution-loc    0
+                        :i-global-time-loc   0
+                        :i-channel-time-loc  0
+                        :i-mouse-loc         0
+                        :i-channel-loc       0
+                        :i-date-loc          0
                         :channel-time-buffer (-> (BufferUtils/createFloatBuffer 4)
                                                  (.put (float-array
                                                         [0.0 0.0 0.0 0.0]))
@@ -45,6 +48,9 @@
                         :channel-buffer      (-> (BufferUtils/createIntBuffer 4)
                                                  (.put (int-array [0 1 2 3]))
                                                  (.flip))
+                        ;; textures
+                        :tex-filenames       []
+                        :tex-ids             []
                         ;; a user draw function
                         :user-fn             nil
                         }))
@@ -59,7 +65,7 @@
    attempted if the display-mode is compatible. See display-modes for a
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
-  [display-mode title shader-filename true-fullscreen? user-fn]
+  [display-mode title shader-filename tex-filenames true-fullscreen? user-fn]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -74,6 +80,7 @@
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename
+           :tex-filenames   tex-filenames
            :user-fn         user-fn)
     (Display/setDisplayMode display-mode)
     (when true-fullscreen?
@@ -176,6 +183,60 @@
            :i-channel-loc i-channel-loc
            :i-date-loc i-date-loc)))
 
+;; OMFG WTF?
+(defn ubyte [val]
+   (if (>= val 128)
+     (byte (- val 256))
+     (byte val)))
+
+(defn- put-texture-pixel
+  [buffer image x y]
+  (let [pixel (.getRGB image x y)] ;; TYPE_INT_ARGB
+    ;; push into the buffer as R/G/B/A
+    (.put buffer (ubyte (bit-and (bit-shift-right pixel 16) 0xFF)))   ;; Red component
+    (.put buffer (ubyte (bit-and (bit-shift-right pixel 8) 0xFF)))    ;; Green component
+    (.put buffer (ubyte (bit-and pixel 0xFF)))                        ;; Blue component
+    (.put buffer (ubyte (bit-and (bit-shift-right pixel 24) 0xFF))))) ;; Alpha component ?FIXME check?
+
+(defn- put-texture-data
+  [buffer image]
+  (dotimes [y (.getHeight image)]
+    (dotimes [x (.getWidth image)]
+      (put-texture-pixel buffer image x y))))
+
+;; test url https://www.shadertoy.com/presets/tex07.jpg
+(defn- load-texture
+  "load, bind texture from filename.  return tex-id.  returns nil if filename is nil"
+  [filename]
+  (if filename
+    (let [_ (println "loading texture" filename)
+          image (-> (FileInputStream. filename)
+                    (ImageIO/read))
+          nbytes (* 4 (.getWidth image) (.getHeight image))
+          buffer (-> (BufferUtils/createByteBuffer nbytes)
+                     (put-texture-data image)
+                     (.flip))
+          tex-id (GL11/glGenTextures)]
+      (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
+                            GL11/GL_LINEAR)
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MIN_FILTER
+                            GL11/GL_LINEAR) ;; FIXME mipmaps?
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_S
+                            GL11/GL_REPEAT)
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
+                            GL11/GL_REPEAT)
+      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGBA8
+                         (.getWidth image)  (.getHeight image) 0
+                         GL11/GL_RGBA GL11/GL_UNSIGNED_BYTE
+                         buffer)
+      tex-id)))
+
+(defn- init-textures
+  []
+  (let [tex-ids (map load-texture (:tex-filenames @globals))]
+    (swap! globals assoc :tex-ids tex-ids)))
+
 (defn- init-gl
   []
   (let [{:keys [width height user-fn]} @globals]
@@ -184,6 +245,7 @@
     (GL11/glViewport 0 0 width height)
     (init-buffers)
     (init-shaders)
+    (init-textures)
     (when user-fn
       (user-fn :init (:pgm-id @globals)))))
 
@@ -241,6 +303,7 @@
                 i-channel-time-loc i-channel-loc
                 channel-time-buffer channel-buffer
                 old-pgm-id old-fs-id
+                tex-ids
                 user-fn]} @globals
         cur-time    (/ (- last-time start-time) 1000.0)
         cur-date    (Calendar/getInstance)
@@ -258,6 +321,12 @@
 
     (when user-fn
       (user-fn :pre-draw pgm-id))
+
+    ;; activate textures
+    (dotimes [i (count tex-ids)]
+      (when (nth tex-ids i)
+        (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 i))
+        (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))))
 
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 0) ;; FIXME what is 3rd iResolution param
@@ -287,6 +356,12 @@
     ;; Put everything back to default (deselect)
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
     (GL11/glDisableClientState GL11/GL_VERTEX_ARRAY)
+
+    ;; unbind textures
+    (dotimes [i (count tex-ids)]
+      (when (nth tex-ids i)
+        (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 i))
+        (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)))
 
     (when user-fn
       (user-fn :post-draw pgm-id))
@@ -342,8 +417,8 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [mode shader-filename title true-fullscreen? user-fn]
-  (init-window mode title shader-filename true-fullscreen? user-fn)
+  [mode shader-filename tex-filenames title true-fullscreen? user-fn]
+  (init-window mode title shader-filename tex-filenames true-fullscreen? user-fn)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
@@ -354,6 +429,13 @@
   (Display/destroy)
   (swap! globals assoc :active :no))
 
+(defn sane-user-inputs
+  [mode shader-filename textures title true-fullscreen? user-fn]
+  (let [check true
+        check (and check (> (count textures) 4))
+        ;; FIXME check all files exist
+        ]
+    check))
 
 ;; watch the shader directory & reload the current shader if it changes.
 (defn- if-match-reload-shader
@@ -427,29 +509,32 @@
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
-  ([mode shader-filename title true-fullscreen? user-fn]
-     ;; stop the current shader
-     (stop)
-     ;; start the requested shader
-     (.start (Thread.
-              (fn [] (run-thread mode
-                                shader-filename
-                                title
-                                true-fullscreen?
-                                user-fn))))))
+  ([mode shader-filename textures title true-fullscreen? user-fn]
+     (if (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)
+       ;; stop the current shader
+       (stop)
+       ;; start the requested shader
+       (.start (Thread.
+                (fn [] (run-thread mode
+                                  shader-filename
+                                  textures
+                                  title
+                                  true-fullscreen?
+                                  user-fn)))))))
 
 (defn start
   "Start a new shader display. Forces the display window to be
    decorated (i.e. have a title bar)."
   ([shader-filename
-    &{:keys [width height title user-fn]
+    &{:keys [width height title textures user-fn]
       :or {width   600
            height  600
            title   "shadertone"
+           textures []
            user-fn nil}}]
      (let [mode (DisplayMode. width height)]
        (decorate-display!)
-       (start-shader-display mode shader-filename title false user-fn))))
+       (start-shader-display mode shader-filename textures title false user-fn))))
 
 (defn start-fullscreen
   "Start a new shader display in pseudo fullscreen mode. This creates a
@@ -457,8 +542,9 @@
    resolution. There are therefore no OS controls for closing the shader
    window. Use (stop) to close things manually. "
   ([shader-filename
-    &{:keys [user-fn]
-      :or {user-fn nil}}]
+    &{:keys [textures user-fn]
+      :or {textures [nil]
+           user-fn nil}}]
      (let [mode (first (display-modes))]
        (undecorate-display!)
-       (start-shader-display mode shader-filename "" false user-fn))))
+       (start-shader-display mode shader-filename textures "" false user-fn))))

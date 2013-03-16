@@ -82,21 +82,21 @@
   (case dispatch ;; FIXME defmulti?
     :init ;; create & bind the texture
     (let [tex-id (GL11/glGenTextures)]
-           (ensure-internal-server!)
-           (reset! fftwave-tex-id tex-id)
-           (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
-           (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
-                                 GL11/GL_LINEAR )
-           (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MIN_FILTER
-                                 GL11/GL_LINEAR )
-           (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_S
-                                 GL12/GL_CLAMP_TO_EDGE )
-           (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
-                                 GL12/GL_CLAMP_TO_EDGE)
-           (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 ARBTextureRg/GL_R32F
-                              WAVE-BUF-SIZE 2 0 GL11/GL_RED GL11/GL_FLOAT
-                              fftwave-float-buf)
-           (GL11/glBindTexture GL11/GL_TEXTURE_2D 0))
+      (ensure-internal-server!)
+      (reset! fftwave-tex-id tex-id)
+      (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
+                            GL11/GL_LINEAR)
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MIN_FILTER
+                            GL11/GL_LINEAR)
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_S
+                            GL12/GL_CLAMP_TO_EDGE)
+      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
+                            GL12/GL_CLAMP_TO_EDGE)
+      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 ARBTextureRg/GL_R32F
+                         WAVE-BUF-SIZE 2 0 GL11/GL_RED GL11/GL_FLOAT
+                         fftwave-float-buf)
+      (GL11/glBindTexture GL11/GL_TEXTURE_2D 0))
     :pre-draw ;; grab the data and put it in the texture for drawing.
     (do
       (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
@@ -111,6 +111,7 @@
                          fftwave-float-buf))
     :post-draw ;; unbind the texture
     (do
+      (GL13/glActiveTexture GL13/GL_TEXTURE0)
       (GL11/glBindTexture GL11/GL_TEXTURE_2D 0))
     :destroy ;;
     (do
@@ -161,6 +162,7 @@
      :or {width      600
           height     600
           title      "shadertone"
+          textures   []
           user-data  {"iOvertoneVolume" (atom 0.0)}
           user-fn    tone-default-fn}}]
   (reset! tone-user-data user-data)
@@ -168,15 +170,19 @@
            :width   width
            :height  height
            :title   title
+           :textures [nil "tex07.jpg"] ;; FIXME conj textures
            :user-fn user-fn))
 
 (defn start-fullscreen
   [shader-filename
    &{:keys [user-data user-fn]
-     :or {user-data  {"iOvertoneVolume" (atom 0.0)}
+     :or {textures   []
+          user-data  {"iOvertoneVolume" (atom 0.0)}
           user-fn    tone-default-fn}}]
   (reset! tone-user-data user-data)
-  (s/start-fullscreen shader-filename :user-fn user-fn))
+  (s/start-fullscreen shader-filename
+                      :textures [nil]  ;; FIXME conj textures
+                      :user-fn user-fn))
 
 (defn stop
   []
