@@ -50,11 +50,7 @@
   (when (server/external-server?)
     (throw (Exception. (str "Sorry, it's only possible to use waves with an internal server. Your server connection info is as follows: " (server/connection-info))))))
 
-;; FIXME -- I need to review this code because I don't quite
-;; understand the data it produces.  It seems inverted (+ for quieter
-;; freqs) and I don't understand the units
-;; [some misunderstanding was from the guitar synth.  since it is 'live', there
-;; is a low level of output at almost all times]
+;; FFT code seems to produce a max value of 2.1-ish for sin-osc
 (defsynth bus-freqs->buf
   [in-bus 0 scope-buf 1 fft-buf-size WAVE-BUF-SIZE rate 1 db-factor 0.02]
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))

@@ -9,10 +9,10 @@ float smoothbump(float center, float width, float x) {
 void main(void)
 {
     vec2  uv     = gl_FragCoord.xy/iResolution.xy;
-    // not quite sure what the units are on the fft...
-    float freq   = -0.33 + (texture2D(iChannel[0],vec2(uv.x,0.25)).x/-6.0);
+    uv.y         = 1.0 - uv.y; // +Y is now "up"
+    float freq   = texture2D(iChannel[0],vec2(uv.x,0.25)).x/2.0; // sin-osc max is about 2.0
     float wave   = texture2D(iChannel[0],vec2(uv.x,0.75)).x;
-    float freqc  = smoothbump(0.0,(3.0/iResolution.y), freq + uv.y - 0.5 );
-    float wavec  = smoothbump(0.0,(3.0/iResolution.y), wave + uv.y - 0.5 );
+    float freqc  = smoothstep(0.0,(1.0/iResolution.y), freq + uv.y - 0.5);
+    float wavec  = smoothbump(0.0,(4.0/iResolution.y), wave + uv.y - 0.5);
     gl_FragColor = vec4(freqc, wavec, 0.25,1.0);
 }

@@ -32,7 +32,10 @@
   (t/start "shaders/quasicrystal.glsl")
   (t/start "shaders/wave.glsl")
   ;; testcase sounds for fft & wave shader (warning, a little loud)
-  (demo 15 (sin-osc (mouse-x 20 20000 EXP)))
+  (demo 5 (sin-osc))
+  (demo 15 (mix (sin-osc [(mouse-x 20 20000 EXP)
+                          (mouse-y 20 20000 EXP)])))
+  (demo 10 (mix (sin-osc [100 1000])))  ; 10000])))
   (demo 15 (saw (mouse-x 20 20000 EXP)))
   (demo 15 (square (mouse-x 20 20000 EXP)))
 
