@@ -367,22 +367,23 @@
 (defn- update
   []
   (let [{:keys [width height last-time
+                mouse-pos-x mouse-pos-y
                 mouse-clicked mouse-ori-x mouse-ori-y]} @globals
         cur-time (System/currentTimeMillis)
         cur-mouse-clicked (Mouse/isButtonDown 0)
         mouse-down-event (and cur-mouse-clicked (not mouse-clicked))
-        cur-mouse-pos-x (if cur-mouse-clicked (Mouse/getX) 0)
-        cur-mouse-pos-y (if cur-mouse-clicked (Mouse/getY) 0)
+        cur-mouse-pos-x (if cur-mouse-clicked (Mouse/getX) mouse-pos-x)
+        cur-mouse-pos-y (if cur-mouse-clicked (Mouse/getY) mouse-pos-y)
         cur-mouse-ori-x (if mouse-down-event
                           (Mouse/getX)
                           (if cur-mouse-clicked
                             mouse-ori-x
-                            0))
+                            (- mouse-ori-x)))
         cur-mouse-ori-y (if mouse-down-event
                           (Mouse/getY)
                           (if cur-mouse-clicked
                             mouse-ori-y
-                            0))]
+                            (- mouse-ori-y)))]
     (swap! globals
            assoc
            :last-time cur-time
