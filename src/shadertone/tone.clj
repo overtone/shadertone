@@ -33,6 +33,7 @@
 ;; on request from ogl, stuff wave-buf & fft-buf into fftwave-float-buf
 ;; and use that FloatBuffer for texturing
 (defonce fftwave-tex-id (atom 0))
+(defonce fftwave-tex-num (atom 0))
 (defonce fftwave-float-buf (-> (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
                                (.put init-fft-array)
                                (.put init-wave-array)
@@ -104,19 +105,36 @@
             (.put (buffer-data fft-buf))
             (.put (buffer-data wave-buf))
             (.flip)))
-      (GL13/glActiveTexture GL13/GL_TEXTURE0)
+      (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D @fftwave-tex-id)
       (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 ARBTextureRg/GL_R32F
                          WAVE-BUF-SIZE 2 0 GL11/GL_RED GL11/GL_FLOAT
                          fftwave-float-buf))
     :post-draw ;; unbind the texture
     (do
-      (GL13/glActiveTexture GL13/GL_TEXTURE0)
+      (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D 0))
     :destroy ;;
     (do
       (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)
       (GL11/glDeleteTextures @fftwave-tex-id))))
+
+(defn- fix-fftwav-texture
+  "look for the :iOvertoneAudio keyword, set the fftwave-tex-num atom"
+  [[i tex]]
+  (if (string? tex)
+    tex ;; just return the string untouched
+    (do
+      (assert (keyword? tex))
+      (assert (= :iOvertoneAudio tex))
+      (reset! fftwave-tex-num i) ;; NOTE: multiple entries will only use last one
+      nil))) ;; return nil
+
+(defn- fix-texture-list
+  "look for the :iOvertoneAudio keyword and replace it with nil"
+  [textures]
+  (reset! fftwave-tex-num 0)
+  (map fix-fftwav-texture (map-indexed vector textures)))
 
 ;; ======================================================================
 ;; Simple API
@@ -148,9 +166,9 @@
         ;;(println key loc val)
         (GL20/glUniform1f loc val))) ;; FIXME support vec2f, vec3f, vec4
     :post-draw
-    nil ;; FIXME
+    nil ;; nothing to do
     :destroy
-    nil ;; FIXME
+    nil ;; nothing to do
     )
   (tone-fftwave-fn dispatch pgm-id))
 
@@ -165,13 +183,14 @@
           textures   []
           user-data  {"iOvertoneVolume" (atom 0.0)}
           user-fn    tone-default-fn}}]
-  (reset! tone-user-data user-data)
-  (s/start shader-filename
-           :width   width
-           :height  height
-           :title   title
-           :textures (flatten [nil textures])
-           :user-fn user-fn))
+  (let [textures (fix-texture-list textures)]
+    (reset! tone-user-data user-data)
+    (s/start shader-filename
+             :width    width
+             :height   height
+             :title    title
+             :textures textures
+             :user-fn  user-fn)))
 
 (defn start-fullscreen
   [shader-filename
@@ -179,10 +198,11 @@
      :or {textures   []
           user-data  {"iOvertoneVolume" (atom 0.0)}
           user-fn    tone-default-fn}}]
-  (reset! tone-user-data user-data)
-  (s/start-fullscreen shader-filename
-                      :textures  (flatten [nil textures])
-                      :user-fn user-fn))
+  (let [textures (fix-texture-list textures)]
+    (reset! tone-user-data user-data)
+    (s/start-fullscreen shader-filename
+                        :textures textures
+                        :user-fn  user-fn)))
 
 (defn stop
   []
