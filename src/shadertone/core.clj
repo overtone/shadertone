@@ -59,4 +59,6 @@
   ;; some basic tests of shadertoy
   (t/start "shaders/calendar.glsl")
   (t/start "shaders/mouse.glsl")
+  ;; you can use textures now, too.
+  (t/start "shaders/simpletex.glsl" :textures ["tex02.jpg"])
 )

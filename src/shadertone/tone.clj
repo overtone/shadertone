@@ -158,7 +158,7 @@
   "Start a new shader display.  Pass in optional user-data and user-fn
   for custom control"
   [shader-filename
-   &{:keys [width height title user-data user-fn]
+   &{:keys [width height title textures user-data user-fn]
      :or {width      600
           height     600
           title      "shadertone"
@@ -170,18 +170,18 @@
            :width   width
            :height  height
            :title   title
-           :textures [nil "tex07.jpg"] ;; FIXME conj textures
+           :textures (flatten [nil textures])
            :user-fn user-fn))
 
 (defn start-fullscreen
   [shader-filename
-   &{:keys [user-data user-fn]
+   &{:keys [textures user-data user-fn]
      :or {textures   []
           user-data  {"iOvertoneVolume" (atom 0.0)}
           user-fn    tone-default-fn}}]
   (reset! tone-user-data user-data)
   (s/start-fullscreen shader-filename
-                      :textures [nil]  ;; FIXME conj textures
+                      :textures  (flatten [nil textures])
                       :user-fn user-fn))
 
 (defn stop

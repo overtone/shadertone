@@ -1,7 +1,7 @@
 (ns shadertone.shader
   (:require [watchtower.core :as watcher])
   (:import (java.awt.image BufferedImage)
-           (java.io FileInputStream)
+           (java.io File FileInputStream)
            (java.nio IntBuffer FloatBuffer)
            (java.util Calendar)
            (javax.imageio ImageIO)
@@ -191,18 +191,20 @@
 
 (defn- put-texture-pixel
   [buffer image x y]
-  (let [pixel (.getRGB image x y)] ;; TYPE_INT_ARGB
-    ;; push into the buffer as R/G/B/A
+  (let [pixel ^int (.getRGB image x y)] ;; TYPE_INT_ARGB
+    ;; push A/R/G/B into the buffer as R/G/B/A
     (.put buffer (ubyte (bit-and (bit-shift-right pixel 16) 0xFF)))   ;; Red component
     (.put buffer (ubyte (bit-and (bit-shift-right pixel 8) 0xFF)))    ;; Green component
     (.put buffer (ubyte (bit-and pixel 0xFF)))                        ;; Blue component
     (.put buffer (ubyte (bit-and (bit-shift-right pixel 24) 0xFF))))) ;; Alpha component ?FIXME check?
 
 (defn- put-texture-data
+  "put the data from the image into the buffer and return the buffer"
   [buffer image]
   (dotimes [y (.getHeight image)]
     (dotimes [x (.getWidth image)]
-      (put-texture-pixel buffer image x y))))
+      (put-texture-pixel buffer image x y)))
+  buffer)
 
 ;; test url https://www.shadertoy.com/presets/tex07.jpg
 (defn- load-texture
@@ -213,10 +215,14 @@
           image (-> (FileInputStream. filename)
                     (ImageIO/read))
           nbytes (* 4 (.getWidth image) (.getHeight image))
+          _ (println "copying" (/ nbytes (* 1024 1024)) "Mbytes of data...")
+          _ (println "FIXME: this is too slow...")
           buffer (-> (BufferUtils/createByteBuffer nbytes)
                      (put-texture-data image)
                      (.flip))
-          tex-id (GL11/glGenTextures)]
+          tex-id (GL11/glGenTextures)
+          _ (println "genid" tex-id)
+          ]
       (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
                             GL11/GL_LINEAR)
@@ -429,13 +435,31 @@
   (Display/destroy)
   (swap! globals assoc :active :no))
 
+(defn good-tex-count
+  [textures]
+  (if (<= (count textures) 4)
+    true
+    (do
+      (println "ERROR: number of textures must be <= 4")
+      false)))
+
+(defn files-exist
+  "check to see that the filenames actually exist.  One tweak is to
+  allow nil filenames.  Those are important placeholders"
+  [filenames]
+  (reduce #(and %1 %2)
+          (for [fn filenames]
+            (if (or (nil? fn)
+                    (.exists (File. fn)))
+              true
+              (do
+                (println "ERROR:" fn "does not exist.")
+                false)))))
+
 (defn sane-user-inputs
   [mode shader-filename textures title true-fullscreen? user-fn]
-  (let [check true
-        check (and check (> (count textures) 4))
-        ;; FIXME check all files exist
-        ]
-    check))
+  (and (good-tex-count textures)
+       (files-exist (flatten [shader-filename textures]))))
 
 ;; watch the shader directory & reload the current shader if it changes.
 (defn- if-match-reload-shader
@@ -510,17 +534,19 @@
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
   ([mode shader-filename textures title true-fullscreen? user-fn]
-     (if (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)
-       ;; stop the current shader
-       (stop)
-       ;; start the requested shader
-       (.start (Thread.
-                (fn [] (run-thread mode
+     (let [sui (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)]
+       (println "sui?" sui)
+       (when sui
+         ;; stop the current shader
+         (stop)
+         ;; start the requested shader
+         (.start (Thread.
+                  (fn [] (run-thread mode
                                   shader-filename
                                   textures
                                   title
                                   true-fullscreen?
-                                  user-fn)))))))
+                                  user-fn))))))))
 
 (defn start
   "Start a new shader display. Forces the display window to be
