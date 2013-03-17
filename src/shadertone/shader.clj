@@ -8,7 +8,7 @@
            (org.lwjgl BufferUtils)
            (org.lwjgl.input Mouse)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
-                             GL11 GL13 GL15 GL20
+                             GL11 GL12 GL13 GL15 GL20
                              PixelFormat)))
 
 ;; ======================================================================
@@ -189,9 +189,8 @@
                          (-> (.getRaster image)
                              (.getDataBuffer)
                              (.getData)))
-        ;;nbytes (* 4 (.getWidth image) (.getHeight image))
         buffer (-> buffer
-                   ;;(.order (ByteOrder/nativeOrder))
+                   ;;(.order (ByteOrder/nativeOrder)) ?
                    (.put data 0 (alength data)))]
     buffer))
 
@@ -199,16 +198,40 @@
   "load, bind texture from filename.  return tex-id.  returns nil if filename is nil"
   [filename]
   (if filename
-    (let [_ (println "Loading texture:" filename)
-          image (-> (FileInputStream. filename)
-                    (ImageIO/read))
-          nbytes (* 3 (.getWidth image) (.getHeight image))  ;; FIXME 4 or 3 depends on texture
-          ;;_ (println "copying" (/ nbytes (* 1024 1024)) "Mbytes of data...")
-          buffer (-> (BufferUtils/createByteBuffer nbytes)
-                     (put-texture-data image)
-                     (.flip))
-          tex-id (GL11/glGenTextures)
-          ;;_ (println "genid" tex-id)
+    (let [_               (println "Loading texture:" filename)
+          image           (-> (FileInputStream. filename)
+                              (ImageIO/read))
+          image-type      (.getType image)
+          image-bytes     (if (or (= image-type BufferedImage/TYPE_3BYTE_BGR)
+                                  (= image-type BufferedImage/TYPE_INT_RGB))
+                            3
+                            (if (or (= image-type BufferedImage/TYPE_4BYTE_ABGR)
+                                    (= image-type BufferedImage/TYPE_INT_ARGB))
+                              4
+                              0)) ;; unhandled image type--what to do?
+          _               (println "image-type"
+                                   (cond
+                                     (= image-type BufferedImage/TYPE_3BYTE_BGR)  "TYPE_3BYTE_BGR"
+                                     (= image-type BufferedImage/TYPE_INT_RGB)    "TYPE_INT_RGB"
+                                     (= image-type BufferedImage/TYPE_4BYTE_ABGR) "TYPE_4BYTE_ABGR"
+                                     (= image-type BufferedImage/TYPE_INT_ARGB)   "TYPE_INT_ARGB"
+                                     :else image-type))
+          _               (assert (> image-bytes 0))
+          internal-format (cond
+                            (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL11/GL_RGB8
+                            (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB8
+                            (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL11/GL_RGBA8
+                            (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA8)
+          format          (cond
+                            (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL12/GL_BGR
+                            (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB
+                            (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL12/GL_BGRA ;; Hmm...will this work?
+                            (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA) ;; Hmm...
+          nbytes          (* image-bytes (.getWidth image) (.getHeight image))
+          buffer          (-> (BufferUtils/createByteBuffer nbytes)
+                              (put-texture-data image)
+                              (.flip))
+          tex-id          (GL11/glGenTextures)
           ]
       (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
@@ -219,9 +242,10 @@
                             GL11/GL_REPEAT)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
                             GL11/GL_REPEAT)
-      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGB8
+      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 internal-format ;GL11/GL_RGB8
                          (.getWidth image)  (.getHeight image) 0
-                         GL11/GL_RGB GL11/GL_UNSIGNED_BYTE
+                         format ;GL12/GL_BGR ;; switch RGB/BGR
+                         GL11/GL_UNSIGNED_BYTE
                          buffer)
       tex-id)))
 
@@ -458,7 +482,7 @@
 
 (defonce __WATCH-SHADERS-FILE__
   (watcher/watcher
-   ["shaders/"]
+   ["shaders/" "examples/"]
    (watcher/rate 100)
    (watcher/file-filter watcher/ignore-dotfiles)
    (watcher/file-filter (watcher/extensions :glsl))

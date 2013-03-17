@@ -62,7 +62,7 @@
   ;;   https://www.shadertoy.com/presets/tex07.jpg
   ;; use a keyword to tell where to place the waveform texture
   ;;   :iOvertoneAudio
-  (t/start "shaders/simpletex.glsl" :textures [:iOvertoneAudio "tex02.jpg" "tex07.jpg"])
+  (t/start "shaders/simpletex.glsl" :textures [:iOvertoneAudio "textures/granite.png" "textures/towel.png"])
 
   ;; stop the shader display
   (t/stop)
