@@ -160,7 +160,14 @@
                   ;; other user data
                   (deref (@tone-user-data key)))]
         ;;(println key loc val)
-        (GL20/glUniform1f loc val))) ;; FIXME support vec2f, vec3f, vec4
+        (if (float? val)
+          (GL20/glUniform1f loc val)
+          (when (vector? val)
+            (case (count val)
+              1 (GL20/glUniform1f loc (nth val 0))
+              2 (GL20/glUniform2f loc (nth val 0) (nth val 1))
+              3 (GL20/glUniform3f loc (nth val 0) (nth val 1) (nth val 2))
+              4 (GL20/glUniform4f loc (nth val 0) (nth val 1) (nth val 2) (nth val 3)))))))
     :post-draw
     nil ;; nothing to do
     :destroy

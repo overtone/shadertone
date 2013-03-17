@@ -41,20 +41,13 @@
 
   ;; user-data api.  create atoms and send them to your shader
   ;; NOTE your shader needs to define:
-  ;;   uniform float iRed, iGreen, iBlue;
+  ;;   uniform float iRGB;
   ;; to match the user-data map below
-  (def my-red   (atom 0.3))
-  (def my-green (atom 0.0))
-  (def my-blue  (atom 0.0))
-  (t/start "shaders/rgb.glsl"
-           :user-data { "iRed"   my-red
-                        "iGreen" my-green
-                        "iBlue"  my-blue})
+  (def my-rgb (atom [0.3 0.1 0.5]))
+  (t/start "shaders/rgb.glsl" :user-data { "iRGB" my-rgb})
   ;; now you can adjust your data at-will and it will be sent to
   ;; the GPU at 60Hz
-  (swap! my-red   (fn [x] 0.55))
-  (swap! my-green (fn [x] 0.95))
-  (swap! my-blue  (fn [x] 0.75))
+  (swap! my-rgb (fn [x] [0.55 0.95 0.75]))
 
   ;; you can use textures now, too.
   ;; grab some from:
@@ -63,6 +56,9 @@
   ;; use a keyword to tell where to place the waveform texture
   ;;   :iOvertoneAudio
   (t/start "shaders/simpletex.glsl" :textures [:iOvertoneAudio "textures/granite.png" "textures/towel.png"])
+  (t/start "shaders/simpletexa.glsl"
+           :title "Simple Tex w/Alpha"
+           :textures [:iOvertoneAudio "textures/granite_alpha.png" "textures/towel.png"])
 
   ;; stop the shader display
   (t/stop)
