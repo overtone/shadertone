@@ -165,7 +165,7 @@ Via a call like this:
 #### Clojure API
 
 To use Shadertone, the main routine you will use are in the
-shadertoy.tone namespace.  Use `start` or `start-fullscreen` to bring
+`shadertoy.tone` namespace.  Use `start` or `start-fullscreen` to bring
 up a window.  Use `stop` to bring it down.  Calling `start` while a
 window is active will stop it gracefully before starting up the new
 window.
@@ -184,6 +184,11 @@ window.
 
 `start-fullscreen` takes just a subset of these, but the meanings are
 the same: `:textures`, `:user-data`, `:user-fn`
+
+There is also a similar api in `shadertone.shader` that does not
+depend on Overtone.  This could be useful for other interactive
+Clojure libraries.  I'd like to know if this type of use case is
+desired, so please get in touch via Issue #14.
 
 ### Setup Native LWJGL libraries
 
