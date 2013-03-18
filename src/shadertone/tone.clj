@@ -133,7 +133,6 @@
   (map fix-fftwav-texture (map-indexed vector textures)))
 
 ;; ======================================================================
-;; Simple API
 (defonce tone-user-data (atom {}))
 (defonce tone-user-locs (atom {}))
 
@@ -142,7 +141,7 @@
 ;; at the top of your glsl shader.
 ;; Also calls tone-fftwave-fn to put waveform and fft data into:
 ;;   iChannel[0]
-(defn tone-default-fn
+(defn- tone-default-fn
   [dispatch pgm-id]
   (case dispatch ;; FIXME defmulti?
     :init ;; find Uniform Location
@@ -175,6 +174,8 @@
     )
   (tone-fftwave-fn dispatch pgm-id))
 
+;; ======================================================================
+;; Public API
 (defn start
   "Start a new shader display.  Pass in optional user-data and user-fn
   for custom control"
