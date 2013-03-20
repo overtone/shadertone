@@ -285,12 +285,12 @@
         (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
         (GL20/glUseProgram pgm-id))
       (let [_ (println "Reloading shader:" shader-filename)
-            i-resolution-loc   (GL20/glGetUniformLocation pgm-id "iResolution")
-            i-global-time-loc  (GL20/glGetUniformLocation pgm-id "iGlobalTime")
-            i-channel-time-loc (GL20/glGetUniformLocation pgm-id "iChannelTime")
-            i-mouse-loc        (GL20/glGetUniformLocation pgm-id "iMouse")
-            i-channel-loc      (GL20/glGetUniformLocation pgm-id "iChannel")
-            i-date-loc         (GL20/glGetUniformLocation pgm-id "iDate")]
+            i-resolution-loc   (GL20/glGetUniformLocation new-pgm-id "iResolution")
+            i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iGlobalTime")
+            i-channel-time-loc (GL20/glGetUniformLocation new-pgm-id "iChannelTime")
+            i-mouse-loc        (GL20/glGetUniformLocation new-pgm-id "iMouse")
+            i-channel-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel")
+            i-date-loc         (GL20/glGetUniformLocation new-pgm-id "iDate")]
         (GL20/glUseProgram new-pgm-id)
         (when user-fn
           (user-fn :init new-pgm-id))
