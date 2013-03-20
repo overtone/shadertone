@@ -18,6 +18,7 @@
                         :width               0
                         :height              0
                         :title               ""
+                        :display-sync-hz     60
                         :start-time          0
                         :last-time           0
                         ;; mouse
@@ -65,7 +66,7 @@
    attempted if the display-mode is compatible. See display-modes for a
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
-  [display-mode title shader-filename tex-filenames true-fullscreen? user-fn]
+  [display-mode title shader-filename tex-filenames true-fullscreen? user-fn display-sync-hz]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -77,6 +78,7 @@
            :width           width
            :height          height
            :title           title
+           :display-sync-hz display-sync-hz
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename
@@ -434,14 +436,14 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [mode shader-filename tex-filenames title true-fullscreen? user-fn]
-  (init-window mode title shader-filename tex-filenames true-fullscreen? user-fn)
+  [mode shader-filename tex-filenames title true-fullscreen? user-fn display-sync-hz]
+  (init-window mode title shader-filename tex-filenames true-fullscreen? user-fn display-sync-hz)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
     (update)
     (Display/update)
-    (Display/sync 60))
+    (Display/sync (:display-sync-hz @globals)))
   (destroy-gl)
   (Display/destroy)
   (swap! globals assoc :active :no))
@@ -544,42 +546,47 @@
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
-  ([mode shader-filename textures title true-fullscreen? user-fn]
-     (when (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)
-       ;; stop the current shader
-       (stop)
-       ;; start the requested shader
-       (.start (Thread.
-                (fn [] (run-thread mode
-                                  shader-filename
-                                  textures
-                                  title
-                                  true-fullscreen?
-                                  user-fn)))))))
+  [mode shader-filename textures title
+   true-fullscreen? user-fn display-sync-hz]
+  (when (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)
+    ;; stop the current shader
+    (stop)
+    ;; start the requested shader
+    (.start (Thread.
+             (fn [] (run-thread mode
+                               shader-filename
+                               textures
+                               title
+                               true-fullscreen?
+                               user-fn
+                               display-sync-hz))))))
 
 (defn start
   "Start a new shader display. Forces the display window to be
    decorated (i.e. have a title bar)."
-  ([shader-filename
-    &{:keys [width height title textures user-fn]
-      :or {width   600
-           height  600
-           title   "shadertone"
-           textures []
-           user-fn nil}}]
-     (let [mode (DisplayMode. width height)]
-       (decorate-display!)
-       (start-shader-display mode shader-filename textures title false user-fn))))
+  [shader-filename
+   &{:keys [width height title display-sync-hz
+            textures user-fn]
+     :or {width   600
+          height  600
+          title   "shadertone"
+          display-sync-hz 60
+          textures []
+          user-fn nil}}]
+  (let [mode (DisplayMode. width height)]
+    (decorate-display!)
+    (start-shader-display mode shader-filename textures title false user-fn display-sync-hz)))
 
 (defn start-fullscreen
   "Start a new shader display in pseudo fullscreen mode. This creates a
    new borderless window which is the size of the current
    resolution. There are therefore no OS controls for closing the shader
    window. Use (stop) to close things manually. "
-  ([shader-filename
-    &{:keys [textures user-fn]
-      :or {textures [nil]
-           user-fn nil}}]
+  [shader-filename
+   &{:keys [display-sync-hz textures user-fn]
+     :or {display-sync-hz 60
+          textures [nil]
+          user-fn nil}}]
      (let [mode (first (display-modes))]
        (undecorate-display!)
-       (start-shader-display mode shader-filename textures "" false user-fn))))
+       (start-shader-display mode shader-filename textures "" false user-fn display-sync-hz)))
