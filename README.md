@@ -45,7 +45,7 @@ The library is just coming together, so expect change.
 The basics are:
 
 1. git clone this repo.  We'll make a lein/clojar library available, eventually.
-2. Setup the native lwjgl libaries.  See below.
+2. Make sure you have leiningen 2.1.0 or later.  This fixed an issue with loading the LWJGL libraries.
 2. Create your code in the examples/yourcode.clj and examples/yourshader.glsl.  See below.
 3. Start with something basic in both files to be certain it works.
 4. You can edit both files "live".  Use your favorite REPL environment
@@ -189,28 +189,6 @@ There is also a similar api in `shadertone.shader` that does not
 depend on Overtone.  This could be useful for other interactive
 Clojure libraries.  I'd like to know if this type of use case is
 desired, so please get in touch via Issue #14.
-
-### Setup Native LWJGL libraries
-
-To link in natives for LWJGL, until Leiningen gets better...do this
-for your platform after running `lein deps`.
-
-#### Mac
-```bash
-> mkdir -p target/native/macosx/x86_64
-> cd target/native/macosx/x86_64
-> jar xf ~/.m2/repository/org/lwjgl/lwjgl/lwjgl-platform/2.8.5/lwjgl-platform-2.8.5-natives-osx.jar
-```
-
-#### Linux
-```bash
-> mkdir -p target/native/linux/x86_64
-> cd target/native/linux/x86_64
-> jar xf ~/.m2/repository/org/lwjgl/lwjgl/lwjgl-platform/2.8.5/lwjgl-platform-2.8.5-natives-linux.jar
-```
-
-#### Windows
-It should be similar to the above, but I haven't proven it out myself.  If you have, please let me know.
 
 ## License
 
