@@ -184,13 +184,31 @@
            :i-channel-loc i-channel-loc
            :i-date-loc i-date-loc)))
 
+(defn- buffer-swizzle-0123-1230
+  "given a ARGB pixel array, swizzle it to be RGBA.  Or, ABGR to BGRA"
+  [^bytes data] ;; Wow!  That ^bytes changes this from 10s for a 256x256 tex to instantaneous.
+  (dotimes [i (/ (alength data) 4)]
+    (let [i0 (* i 4)
+          i1 (inc i0)
+          i2 (inc i1)
+          i3 (inc i2)
+          tmp (aget data i0)]
+      (aset data i0 (aget data i1))
+      (aset data i1 (aget data i2))
+      (aset data i2 (aget data i3))
+      (aset data i3 tmp)))
+  data)
+
 (defn- put-texture-data
   "put the data from the image into the buffer and return the buffer"
-  [buffer image]
+  [buffer image swizzle-0123-1230]
   (let [data (byte-array ^DataBufferByte
                          (-> (.getRaster image)
                              (.getDataBuffer)
                              (.getData)))
+        data (if swizzle-0123-1230
+               (buffer-swizzle-0123-1230 data)
+               data)
         buffer (-> buffer
                    ;;(.order (ByteOrder/nativeOrder)) ?
                    (.put data 0 (alength data)))]
@@ -218,7 +236,7 @@
                                      (= image-type BufferedImage/TYPE_4BYTE_ABGR) "TYPE_4BYTE_ABGR"
                                      (= image-type BufferedImage/TYPE_INT_ARGB)   "TYPE_INT_ARGB"
                                      :else image-type))
-          _               (assert (> image-bytes 0))
+          _               (assert (> image-bytes 0)) ;; die on unhandled image
           internal-format (cond
                             (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL11/GL_RGB8
                             (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB8
@@ -227,11 +245,11 @@
           format          (cond
                             (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL12/GL_BGR
                             (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB
-                            (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL12/GL_BGRA ;; Hmm...will this work?
-                            (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA) ;; Hmm...
+                            (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL12/GL_BGRA
+                            (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA)
           nbytes          (* image-bytes (.getWidth image) (.getHeight image))
           buffer          (-> (BufferUtils/createByteBuffer nbytes)
-                              (put-texture-data image)
+                              (put-texture-data image (= image-bytes 4))
                               (.flip))
           tex-id          (GL11/glGenTextures)
           ]
