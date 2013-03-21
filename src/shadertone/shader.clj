@@ -402,12 +402,12 @@
                           (Mouse/getX)
                           (if cur-mouse-clicked
                             mouse-ori-x
-                            (- mouse-ori-x)))
+                            (- (Math/abs mouse-ori-x))))
         cur-mouse-ori-y (if mouse-down-event
                           (Mouse/getY)
                           (if cur-mouse-clicked
                             mouse-ori-y
-                            (- mouse-ori-y)))]
+                            (- (Math/abs mouse-ori-y))))]
     (swap! globals
            assoc
            :last-time cur-time
