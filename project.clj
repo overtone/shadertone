@@ -5,8 +5,8 @@
 (def LWJGL-CLASSIFIER
   "Per os native code classifier"
   {:macosx  "natives-osx"
-   :linux   "natives-linux"      ;; TESTME
-   :windows "natives-windows"})  ;; TESTME
+   :linux   "natives-linux"
+   :windows "natives-windows"})
 
 (defn lwjgl-classifier
   "Return the os-dependent lwjgl native-code classifier"
