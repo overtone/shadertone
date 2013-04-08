@@ -1,6 +1,5 @@
 // The shadertoy uniform variables are available by default.
-// Overtone uses iChannel[0] for sound data
-// iChannel[1,2,3] are available for textures
+// iChannel1,2 are should have 2D textures
 
 // It is necessary to add the Overtone vars.
 uniform float iOvertoneVolume;

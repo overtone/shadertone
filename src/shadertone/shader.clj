@@ -40,15 +40,11 @@
                         :i-global-time-loc   0
                         :i-channel-time-loc  0
                         :i-mouse-loc         0
-                        :i-channel-loc       [0 0 0]
+                        :i-channel-loc       [0 0 0 0]
                         :i-date-loc          0
                         :channel-time-buffer (-> (BufferUtils/createFloatBuffer 4)
                                                  (.put (float-array
                                                         [0.0 0.0 0.0 0.0]))
-                                                 (.flip))
-                        ;; FIXME remove channel-buffer
-                        :channel-buffer      (-> (BufferUtils/createIntBuffer 4)
-                                                 (.put (int-array [0 1 2 3]))
                                                  (.flip))
                         ;; textures
                         :tex-filenames       []
@@ -61,6 +57,13 @@
 (defonce reload-shader (ref false))
 
 ;; ======================================================================
+(defn- fill-tex-filenames
+  "return a vector of 4 items, always.  Use nil if no filename"
+  [tex-filenames]
+  (apply vector
+         (for [i (range 4)]
+           (if (< i (count tex-filenames))
+             (nth tex-filenames i)))))
 
 (defn- init-window
   "Initialise a shader-powered window with the specified
@@ -73,7 +76,8 @@
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
         context-attributes  (-> (ContextAttribs. 2 1)) ;; GL2.1
-        current-time-millis (System/currentTimeMillis)]
+        current-time-millis (System/currentTimeMillis)
+        tex-filenames       (fill-tex-filenames tex-filenames)]
     (swap! globals
            assoc
            :active          :yes
@@ -143,8 +147,8 @@
                               (if (nth tex-cubemaps 1) "Cube" "2D"))
                       (format "uniform sampler%s iChannel2;\n"
                               (if (nth tex-cubemaps 2) "Cube" "2D"))
-                      ;;(format "uniform sampler%s iChannel3;\n"
-                      ;;        (if (nth tex-cubemaps 3) "CUBE" "2D"))
+                      (format "uniform sampler%s iChannel3;\n"
+                              (if (nth tex-cubemaps 3) "CUBE" "2D"))
                       "uniform vec4      iDate;\n"
                       "\n"
                       (slurp filename))]
@@ -165,7 +169,7 @@
   []
   (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
         fs-shader             (slurp-fs (:shader-filename @globals))
-        _ (println "Here is the shader...\n" fs-shader)
+        ;;_ (println "Here is the shader...\n" fs-shader)
         _                     (println "Loading shader:" (:shader-filename @globals))
         fs-id                 (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         pgm-id                (GL20/glCreateProgram)
@@ -180,9 +184,10 @@
         i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
         i-channel-time-loc    (GL20/glGetUniformLocation pgm-id "iChannelTime")
         i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
-        i-channel0-loc         (GL20/glGetUniformLocation pgm-id "iChannel0")
-        i-channel1-loc         (GL20/glGetUniformLocation pgm-id "iChannel1")
-        i-channel2-loc         (GL20/glGetUniformLocation pgm-id "iChannel2")
+        i-channel0-loc        (GL20/glGetUniformLocation pgm-id "iChannel0")
+        i-channel1-loc        (GL20/glGetUniformLocation pgm-id "iChannel1")
+        i-channel2-loc        (GL20/glGetUniformLocation pgm-id "iChannel2")
+        i-channel3-loc        (GL20/glGetUniformLocation pgm-id "iChannel3")
         i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
         ]
     (swap! globals
@@ -194,7 +199,7 @@
            :i-global-time-loc i-global-time-loc
            :i-channel-time-loc i-channel-time-loc
            :i-mouse-loc i-mouse-loc
-           :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc]
+           :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
            :i-date-loc i-date-loc)))
 
 (defn- buffer-swizzle-0123-1230
@@ -249,13 +254,13 @@
                               (= image-type BufferedImage/TYPE_INT_ARGB))
                         4
                         0)) ;; unhandled image type--what to do?
-        _           (println "image-type"
-                                 (cond
-                                  (= image-type BufferedImage/TYPE_3BYTE_BGR)  "TYPE_3BYTE_BGR"
-                                  (= image-type BufferedImage/TYPE_INT_RGB)    "TYPE_INT_RGB"
-                                  (= image-type BufferedImage/TYPE_4BYTE_ABGR) "TYPE_4BYTE_ABGR"
-                                  (= image-type BufferedImage/TYPE_INT_ARGB)   "TYPE_INT_ARGB"
-                                  :else image-type))
+        ;; _           (println "image-type"
+        ;;                          (cond
+        ;;                           (= image-type BufferedImage/TYPE_3BYTE_BGR)  "TYPE_3BYTE_BGR"
+        ;;                           (= image-type BufferedImage/TYPE_INT_RGB)    "TYPE_INT_RGB"
+        ;;                           (= image-type BufferedImage/TYPE_4BYTE_ABGR) "TYPE_4BYTE_ABGR"
+        ;;                           (= image-type BufferedImage/TYPE_INT_ARGB)   "TYPE_INT_ARGB"
+        ;;                           :else image-type))
         _           (assert (> image-bytes 0))] ;; die on unhandled image
     image-bytes))
 
@@ -359,9 +364,10 @@
             i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iGlobalTime")
             i-channel-time-loc (GL20/glGetUniformLocation new-pgm-id "iChannelTime")
             i-mouse-loc        (GL20/glGetUniformLocation new-pgm-id "iMouse")
-            i-channel0-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel0")
-            i-channel1-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel1")
-            i-channel2-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel2")
+            i-channel0-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel0")
+            i-channel1-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel1")
+            i-channel2-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel2")
+            i-channel3-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel3")
             i-date-loc         (GL20/glGetUniformLocation new-pgm-id "iDate")]
         (GL20/glUseProgram new-pgm-id)
         (when user-fn
@@ -378,7 +384,7 @@
                :i-global-time-loc i-global-time-loc
                :i-channel-time-loc i-channel-time-loc
                :i-mouse-loc i-mouse-loc
-               :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc]
+               :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
                :i-date-loc i-date-loc)))))
 
 (defn- draw
@@ -392,7 +398,7 @@
                 mouse-pos-x mouse-pos-y
                 mouse-ori-x mouse-ori-y
                 i-channel-time-loc i-channel-loc
-                channel-time-buffer channel-buffer
+                channel-time-buffer
                 old-pgm-id old-fs-id
                 tex-ids tex-cubemaps
                 user-fn]} @globals
@@ -437,9 +443,9 @@
                       mouse-pos-y
                       mouse-ori-x
                       mouse-ori-y)
-    (GL20/glUniform1 (nth i-channel-loc 0) 0)
-    (GL20/glUniform1 (nth i-channel-loc 1) 1)
-    (GL20/glUniform1 (nth i-channel-loc 2) 2)
+    (GL20/glUniform1i (nth i-channel-loc 0) 0)
+    (GL20/glUniform1i (nth i-channel-loc 1) 1)
+    (GL20/glUniform1i (nth i-channel-loc 2) 2)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
