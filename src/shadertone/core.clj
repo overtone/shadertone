@@ -55,11 +55,14 @@
   ;;   https://www.shadertoy.com/presets/tex07.jpg
   ;; use a keyword to tell where to place the waveform texture
   ;;   :iOvertoneAudio
-  (t/start "shaders/simpletex.glsl" :textures [:iOvertoneAudio "textures/granite.png" "textures/towel.png"])
+  (t/start "shaders/simpletex.glsl"
+           :textures [:iOvertoneAudio "textures/granite.png" "textures/towel.png"])
   (t/start "shaders/simpletexa.glsl"
            :title "Simple Tex w/Alpha"
            :textures [:iOvertoneAudio "textures/granite_alpha.png" "textures/towel.png"])
-
+  (t/start "shaders/simesgreen_shard.glsl"
+           :title "Simon Green's Shard"
+           :textures ["textures/tex11.png" "textures/cube00_*.jpg" :iOvertoneAudio])
   ;; stop the shader display
   (t/stop)
 

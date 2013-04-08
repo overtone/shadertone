@@ -40,18 +40,20 @@
                         :i-global-time-loc   0
                         :i-channel-time-loc  0
                         :i-mouse-loc         0
-                        :i-channel-loc       0
+                        :i-channel-loc       [0 0 0]
                         :i-date-loc          0
                         :channel-time-buffer (-> (BufferUtils/createFloatBuffer 4)
                                                  (.put (float-array
                                                         [0.0 0.0 0.0 0.0]))
                                                  (.flip))
+                        ;; FIXME remove channel-buffer
                         :channel-buffer      (-> (BufferUtils/createIntBuffer 4)
                                                  (.put (int-array [0 1 2 3]))
                                                  (.flip))
                         ;; textures
                         :tex-filenames       []
                         :tex-ids             []
+                        :tex-cubemaps        []
                         ;; a user draw function
                         :user-fn             nil
                         }))
@@ -128,16 +130,24 @@
   "do whatever it takes to modify shadertoy fragment shader source to
   be useable"
   [filename]
-  (let [file-str (slurp filename)
+  (let [{:keys [tex-cubemaps]} @globals
+        ;;file-str (slurp filename)
         file-str (str "#version 120\n"
                       "uniform vec3      iResolution;\n"
                       "uniform float     iGlobalTime;\n"
                       "uniform float     iChannelTime[4];\n"
                       "uniform vec4      iMouse;\n"
-                      "uniform sampler2D iChannel[4];\n"
+                      (format "uniform sampler%s iChannel0;\n"
+                              (if (nth tex-cubemaps 0) "Cube" "2D"))
+                      (format "uniform sampler%s iChannel1;\n"
+                              (if (nth tex-cubemaps 1) "Cube" "2D"))
+                      (format "uniform sampler%s iChannel2;\n"
+                              (if (nth tex-cubemaps 2) "Cube" "2D"))
+                      ;;(format "uniform sampler%s iChannel3;\n"
+                      ;;        (if (nth tex-cubemaps 3) "CUBE" "2D"))
                       "uniform vec4      iDate;\n"
                       "\n"
-                      file-str)]
+                      (slurp filename))]
     file-str))
 
 (defn- load-shader
@@ -155,6 +165,7 @@
   []
   (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
         fs-shader             (slurp-fs (:shader-filename @globals))
+        _ (println "Here is the shader...\n" fs-shader)
         _                     (println "Loading shader:" (:shader-filename @globals))
         fs-id                 (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         pgm-id                (GL20/glCreateProgram)
@@ -169,7 +180,9 @@
         i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
         i-channel-time-loc    (GL20/glGetUniformLocation pgm-id "iChannelTime")
         i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
-        i-channel-loc         (GL20/glGetUniformLocation pgm-id "iChannel")
+        i-channel0-loc         (GL20/glGetUniformLocation pgm-id "iChannel0")
+        i-channel1-loc         (GL20/glGetUniformLocation pgm-id "iChannel1")
+        i-channel2-loc         (GL20/glGetUniformLocation pgm-id "iChannel2")
         i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
         ]
     (swap! globals
@@ -181,7 +194,7 @@
            :i-global-time-loc i-global-time-loc
            :i-channel-time-loc i-channel-time-loc
            :i-mouse-loc i-mouse-loc
-           :i-channel-loc i-channel-loc
+           :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc]
            :i-date-loc i-date-loc)))
 
 (defn- buffer-swizzle-0123-1230
@@ -199,6 +212,17 @@
       (aset data i3 tmp)))
   data)
 
+(defn- cubemap-filename?
+  "if a filename contains a '*' char, it is a cubemap"
+  [filename]
+  (if filename
+    (not (nil? (re-find #"\*" filename)))
+    false))
+
+(defn- cubemap-filename
+  [filename i]
+  (clojure.string/replace filename "*" (str i)))
+
 (defn- put-texture-data
   "put the data from the image into the buffer and return the buffer"
   [buffer image swizzle-0123-1230]
@@ -214,65 +238,93 @@
                    (.put data 0 (alength data)))]
     buffer))
 
+(defn- tex-image-bytes
+  "return the number of bytes per pixel in this image"
+  [image]
+  (let [image-type  (.getType image)
+        image-bytes (if (or (= image-type BufferedImage/TYPE_3BYTE_BGR)
+                            (= image-type BufferedImage/TYPE_INT_RGB))
+                      3
+                      (if (or (= image-type BufferedImage/TYPE_4BYTE_ABGR)
+                              (= image-type BufferedImage/TYPE_INT_ARGB))
+                        4
+                        0)) ;; unhandled image type--what to do?
+        _           (println "image-type"
+                                 (cond
+                                  (= image-type BufferedImage/TYPE_3BYTE_BGR)  "TYPE_3BYTE_BGR"
+                                  (= image-type BufferedImage/TYPE_INT_RGB)    "TYPE_INT_RGB"
+                                  (= image-type BufferedImage/TYPE_4BYTE_ABGR) "TYPE_4BYTE_ABGR"
+                                  (= image-type BufferedImage/TYPE_INT_ARGB)   "TYPE_INT_ARGB"
+                                  :else image-type))
+        _           (assert (> image-bytes 0))] ;; die on unhandled image
+    image-bytes))
+
+(defn- tex-internal-format
+  "return the internal-format for the glTexImage2D call for this image"
+  [image]
+  (let [image-type      (.getType image)
+        internal-format (cond
+                         (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL11/GL_RGB8
+                         (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB8
+                         (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL11/GL_RGBA8
+                         (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA8)]
+    internal-format))
+
+(defn- tex-format
+  "return the format for the glTexImage2D call for this image"
+  [image]
+  (let [image-type (.getType image)
+        format     (cond
+                    (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL12/GL_BGR
+                    (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB
+                    (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL12/GL_BGRA
+                    (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA)]
+    format))
+
 (defn- load-texture
   "load, bind texture from filename.  return tex-id.  returns nil if filename is nil"
-  [filename]
-  (if filename
-    (let [_               (println "Loading texture:" filename)
-          image           (-> (FileInputStream. filename)
-                              (ImageIO/read))
-          image-type      (.getType image)
-          image-bytes     (if (or (= image-type BufferedImage/TYPE_3BYTE_BGR)
-                                  (= image-type BufferedImage/TYPE_INT_RGB))
-                            3
-                            (if (or (= image-type BufferedImage/TYPE_4BYTE_ABGR)
-                                    (= image-type BufferedImage/TYPE_INT_ARGB))
-                              4
-                              0)) ;; unhandled image type--what to do?
-          _               (println "image-type"
-                                   (cond
-                                     (= image-type BufferedImage/TYPE_3BYTE_BGR)  "TYPE_3BYTE_BGR"
-                                     (= image-type BufferedImage/TYPE_INT_RGB)    "TYPE_INT_RGB"
-                                     (= image-type BufferedImage/TYPE_4BYTE_ABGR) "TYPE_4BYTE_ABGR"
-                                     (= image-type BufferedImage/TYPE_INT_ARGB)   "TYPE_INT_ARGB"
-                                     :else image-type))
-          _               (assert (> image-bytes 0)) ;; die on unhandled image
-          internal-format (cond
-                            (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL11/GL_RGB8
-                            (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB8
-                            (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL11/GL_RGBA8
-                            (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA8)
-          format          (cond
-                            (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL12/GL_BGR
-                            (= image-type BufferedImage/TYPE_INT_RGB)    GL11/GL_RGB
-                            (= image-type BufferedImage/TYPE_4BYTE_ABGR) GL12/GL_BGRA
-                            (= image-type BufferedImage/TYPE_INT_ARGB)   GL11/GL_RGBA)
-          nbytes          (* image-bytes (.getWidth image) (.getHeight image))
-          buffer          (-> (BufferUtils/createByteBuffer nbytes)
-                              (put-texture-data image (= image-bytes 4))
-                              (.flip))
-          tex-id          (GL11/glGenTextures)
-          ]
-      (GL11/glBindTexture GL11/GL_TEXTURE_2D tex-id)
-      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MAG_FILTER
-                            GL11/GL_LINEAR)
-      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_MIN_FILTER
-                            GL11/GL_LINEAR) ;; mipmaps?
-      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_S
-                            GL11/GL_REPEAT)
-      (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
-                            GL11/GL_REPEAT)
-      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 internal-format ;GL11/GL_RGB8
+  ([filename]
+     (let [tex-id (GL11/glGenTextures)]
+       (if (cubemap-filename? filename)
+         (do
+           (dotimes [i 6]
+             (load-texture (cubemap-filename filename i) GL13/GL_TEXTURE_CUBE_MAP tex-id i))
+           tex-id)
+         (load-texture filename GL11/GL_TEXTURE_2D tex-id 0))))
+  ([filename target tex-id i]
+     (if filename
+       (let [_                (println "Loading texture:" filename)
+             image            (-> (FileInputStream. filename)
+                                  (ImageIO/read))
+             image-bytes      (tex-image-bytes image)
+             internal-format  (tex-internal-format image)
+             format           (tex-format image)
+             nbytes           (* image-bytes (.getWidth image) (.getHeight image))
+             buffer           (-> (BufferUtils/createByteBuffer nbytes)
+                                  (put-texture-data image (= image-bytes 4))
+                                  (.flip))
+             tex-image-target (if (= target GL13/GL_TEXTURE_CUBE_MAP)
+                                (+ i GL13/GL_TEXTURE_CUBE_MAP_POSITIVE_X)
+                                target)]
+      (GL11/glBindTexture target tex-id)
+      (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
+      (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
+      (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL11/GL_REPEAT)
+      (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL11/GL_REPEAT)
+      (GL11/glTexImage2D tex-image-target 0 internal-format
                          (.getWidth image)  (.getHeight image) 0
-                         format ;GL12/GL_BGR ;; switch RGB/BGR
+                         format
                          GL11/GL_UNSIGNED_BYTE
                          buffer)
-      tex-id)))
+      tex-id))))
 
 (defn- init-textures
   []
-  (let [tex-ids (map load-texture (:tex-filenames @globals))]
-    (swap! globals assoc :tex-ids tex-ids)))
+  (let [tex-ids (map load-texture (:tex-filenames @globals))
+        tex-cubemaps (map cubemap-filename? (:tex-filenames @globals))]
+    (swap! globals assoc
+           :tex-ids      tex-ids
+           :tex-cubemaps tex-cubemaps)))
 
 (defn- init-gl
   []
@@ -281,8 +333,8 @@
     (GL11/glClearColor 0.0 0.0 0.0 0.0)
     (GL11/glViewport 0 0 width height)
     (init-buffers)
-    (init-shaders)
     (init-textures)
+    (init-shaders)
     (when user-fn
       (user-fn :init (:pgm-id @globals)))))
 
@@ -307,7 +359,9 @@
             i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iGlobalTime")
             i-channel-time-loc (GL20/glGetUniformLocation new-pgm-id "iChannelTime")
             i-mouse-loc        (GL20/glGetUniformLocation new-pgm-id "iMouse")
-            i-channel-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel")
+            i-channel0-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel0")
+            i-channel1-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel1")
+            i-channel2-loc      (GL20/glGetUniformLocation new-pgm-id "iChannel2")
             i-date-loc         (GL20/glGetUniformLocation new-pgm-id "iDate")]
         (GL20/glUseProgram new-pgm-id)
         (when user-fn
@@ -324,7 +378,7 @@
                :i-global-time-loc i-global-time-loc
                :i-channel-time-loc i-channel-time-loc
                :i-mouse-loc i-mouse-loc
-               :i-channel-loc i-channel-loc
+               :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc]
                :i-date-loc i-date-loc)))))
 
 (defn- draw
@@ -340,7 +394,7 @@
                 i-channel-time-loc i-channel-loc
                 channel-time-buffer channel-buffer
                 old-pgm-id old-fs-id
-                tex-ids
+                tex-ids tex-cubemaps
                 user-fn]} @globals
         cur-time    (/ (- last-time start-time) 1000.0)
         cur-date    (Calendar/getInstance)
@@ -363,7 +417,9 @@
     (dotimes [i (count tex-ids)]
       (when (nth tex-ids i)
         (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 i))
-        (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))))
+        (if (nth tex-cubemaps i)
+          (GL11/glBindTexture GL13/GL_TEXTURE_CUBE_MAP (nth tex-ids i))
+          (GL11/glBindTexture GL11/GL_TEXTURE_2D       (nth tex-ids i)))))
 
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 1.0)
@@ -381,7 +437,9 @@
                       mouse-pos-y
                       mouse-ori-x
                       mouse-ori-y)
-    (GL20/glUniform1 i-channel-loc channel-buffer)
+    (GL20/glUniform1 (nth i-channel-loc 0) 0)
+    (GL20/glUniform1 (nth i-channel-loc 1) 1)
+    (GL20/glUniform1 (nth i-channel-loc 2) 2)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
@@ -397,6 +455,7 @@
     (dotimes [i (count tex-ids)]
       (when (nth tex-ids i)
         (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 i))
+        (GL11/glBindTexture GL13/GL_TEXTURE_CUBE_MAP 0)
         (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)))
 
     (when user-fn
@@ -466,7 +525,7 @@
   (Display/destroy)
   (swap! globals assoc :active :no))
 
-(defn good-tex-count
+(defn- good-tex-count
   [textures]
   (if (<= (count textures) 4)
     true
@@ -474,20 +533,30 @@
       (println "ERROR: number of textures must be <= 4")
       false)))
 
-(defn files-exist
-  "check to see that the filenames actually exist.  One tweak is to
-  allow nil filenames.  Those are important placeholders"
-  [filenames]
-  (reduce #(and %1 %2)
-          (for [fn filenames]
-            (if (or (nil? fn)
-                    (.exists (File. fn)))
-              true
-              (do
-                (println "ERROR:" fn "does not exist.")
-                false)))))
+(defn- expand-filename
+  "if there is a cubemap filename, expand it 0..5 for the
+  cubemaps. otherwise leave it alone."
+  [filename]
+  (if (cubemap-filename? filename)
+    (for [i (range 6)] (cubemap-filename filename i))
+    filename))
 
-(defn sane-user-inputs
+(defn- files-exist
+  "check to see that the filenames actually exist.  One tweak is to
+  allow nil filenames.  Those are important placeholders.  Another
+  tweak is to expand names for cubemap textures."
+  [filenames]
+  (let [full-filenames (flatten (map expand-filename filenames))]
+    (reduce #(and %1 %2)
+            (for [fn full-filenames]
+              (if (or (nil? fn)
+                      (.exists (File. fn)))
+                true
+                (do
+                  (println "ERROR:" fn "does not exist.")
+                  false))))))
+
+(defn- sane-user-inputs
   [mode shader-filename textures title true-fullscreen? user-fn]
   (and (good-tex-count textures)
        (files-exist (flatten [shader-filename textures]))))
