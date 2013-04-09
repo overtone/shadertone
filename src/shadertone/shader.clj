@@ -314,8 +314,13 @@
       (GL11/glBindTexture target tex-id)
       (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
       (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
-      (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL11/GL_REPEAT)
-      (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL11/GL_REPEAT)
+      (if (== target GL11/GL_TEXTURE_2D)
+        (do
+          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL11/GL_REPEAT)
+          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL11/GL_REPEAT))
+        (do ;; CUBE_MAP
+          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
+          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)))
       (GL11/glTexImage2D tex-image-target 0 internal-format
                          (.getWidth image)  (.getHeight image) 0
                          format
@@ -446,6 +451,7 @@
     (GL20/glUniform1i (nth i-channel-loc 0) 0)
     (GL20/glUniform1i (nth i-channel-loc 1) 1)
     (GL20/glUniform1i (nth i-channel-loc 2) 2)
+    (GL20/glUniform1i (nth i-channel-loc 3) 3)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)

@@ -60,7 +60,7 @@
   (t/start "shaders/simpletexa.glsl"
            :title "Simple Tex w/Alpha"
            :textures [:iOvertoneAudio "textures/granite_alpha.png" "textures/towel.png"])
-  ;; FIXME -- add cubemap test
+  (t/start "shaders/simplecube.glsl" :textures [:iOvertoneAudio "textures/buddha_*.jpg"])
   ;; stop the shader display
   (t/stop)
 
