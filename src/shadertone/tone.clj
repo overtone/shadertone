@@ -50,7 +50,9 @@
   (when (server/external-server?)
     (throw (Exception. (str "Sorry, it's only possible to use waves with an internal server. Your server connection info is as follows: " (server/connection-info))))))
 
-;; FFT code seems to produce a max value of 2.1-ish for sin-osc
+;; Original FFT code produced a logarithmic dB scale.
+;; But shadertoy seems to get data in a 0-1 range.
+;; Changed from log to linear below.
 (defsynth bus-freqs->buf
   [in-bus 0 scope-buf 1 fft-buf-size WAVE-BUF-SIZE rate 1 db-factor 0.02]
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
@@ -64,7 +66,7 @@
                         n-samples))
         indexer   (round indexer 2)
         src       (buf-rd 1 fft-buf indexer 1 1)
-        freq-vals (+ 1 (* db-factor (ampdb (* src 0.00285))))]
+        freq-vals (/ (pow 10 (+ 1 (* db-factor (ampdb (* src 0.00285))))) 6.0)]
     (record-buf freq-vals scope-buf)))
 
 (defonce fft-bus-synth

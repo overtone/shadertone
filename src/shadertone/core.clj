@@ -23,7 +23,14 @@
        :pre-amp 5.0 :distort 0.76
        :lp-freq 2000 :lp-rq 0.25
        :rvb-mix 0.5 :rvb-room 0.7 :rvb-damp 0.4)
-
+  (def snare (sample (freesound-path 26903)))
+  (def kick (sample (freesound-path 2086)))
+  (def close-hihat (sample (freesound-path 802)))
+  (def open-hihat (sample (freesound-path 26657)))
+  (snare)
+  (kick)
+  (close-hihat)
+  (open-hihat)
   ;; try some other visualizations...
   (t/start-fullscreen "shaders/simple.glsl")
   (t/start "shaders/sine_dance.glsl"
@@ -32,7 +39,7 @@
   (t/start "shaders/quasicrystal.glsl")
   (t/start "shaders/wave.glsl")
   ;; testcase sounds for fft & wave shader (warning, a little loud)
-  (demo 5 (sin-osc))
+  (demo 5 (* 1.25 (sin-osc))) ;; looks like a max to me
   (demo 15 (mix (sin-osc [(mouse-x 20 20000 EXP)
                           (mouse-y 20 20000 EXP)])))
   (demo 10 (mix (sin-osc [100 1000])))  ; 10000])))
