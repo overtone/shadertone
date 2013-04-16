@@ -55,6 +55,11 @@
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
 (defonce reload-shader (ref false))
+;; Atom for the directory watcher future
+(defonce watcher-future (atom (future (fn [] nil))))
+;; Flag to help avoid reloading shader right after loading it for the
+;; first time.
+(defonce watcher-just-started (atom true))
 
 ;; ======================================================================
 (defn- fill-tex-filenames
@@ -576,18 +581,33 @@
 ;; watch the shader directory & reload the current shader if it changes.
 (defn- if-match-reload-shader
   [files]
-  (doseq [f files]
-    (when (= (.getPath f) (:shader-filename @globals))
-      ;; set a flag that the opengl thread will use
-      (dosync (ref-set reload-shader true)))))
+  (if @watcher-just-started
+    ;; allow first, automatic call to pass unnoticed
+    (swap! watcher-just-started (fn [x] false))
+    ;; otherwise do the reload check
+    (doseq [f files]
+      (when (= (.getPath f) (:shader-filename @globals))
+        ;; set a flag that the opengl thread will use
+        (dosync (ref-set reload-shader true))))))
 
-(defonce __WATCH-SHADERS-FILE__
+(defn- start-watcher
+  "create a watch for glsl shaders in the directory and return the global
+  future atom for that watcher"
+  [dir]
+  (swap! watcher-just-started (fn [x] true))
   (watcher/watcher
-   ["shaders/" "examples/"]
+   [dir]
    (watcher/rate 100)
    (watcher/file-filter watcher/ignore-dotfiles)
    (watcher/file-filter (watcher/extensions :glsl))
    (watcher/on-change #(if-match-reload-shader %))))
+
+(defn- stop-watcher
+  "given a watcher-future f, put a stop to it"
+  [f]
+  (when (not (or (future-done? f) (future-cancelled? f)))
+    (if (not (future-cancel f))
+      (println "ERROR: unable to stop-watcher!"))))
 
 ;; Public API ===================================================
 
@@ -640,7 +660,8 @@
   (when (active?)
     (swap! globals assoc :active :stopping)
     (while (not (inactive?))
-      (Thread/sleep 100))))
+      (Thread/sleep 100)))
+  (stop-watcher @watcher-future))
 
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
@@ -650,6 +671,9 @@
   (when (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)
     ;; stop the current shader
     (stop)
+    ;; start the watcher
+    (swap! watcher-future
+           (fn [x] (start-watcher (.getParent (File. shader-filename)))))
     ;; start the requested shader
     (.start (Thread.
              (fn [] (run-thread mode
