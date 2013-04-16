@@ -1,12 +1,13 @@
-                        __              __          __
-                  _____/ /_  ____ _____/ /__  _____/ /_____  ____  ___
-                 / ___/ __ \/ __ `/ __  / _ \/ ___/ __/ __ \/ __ \/ _ \
-                (__  ) / / / /_/ / /_/ /  __/ /  / /_/ /_/ / / / /  __/
-               /____/_/ /_/\__,_/\__,_/\___/_/   \__/\____/_/ /_/\___/
+                                        __              __          __
+                                  _____/ /_  ____ _____/ /__  _____/ /_____  ____  ___
+                                 / ___/ __ \/ __ `/ __  / _ \/ ___/ __/ __ \/ __ \/ _ \
+                                (__  ) / / / /_/ / /_/ /  __/ /  / /_/ /_/ / / / /  __/
+                               /____/_/ /_/\__,_/\__,_/\___/_/   \__/\____/_/ /_/\___/
+                                                                                     .
 
 A Clojure library designed to mix
-[Overtone](https://github.com/overtone/overtone) Musical Synthesis and
-[Shadertoy](http://www.shadertoy.com) GLSL shaders.
+Musical Synthesis vi [Overtone](https://github.com/overtone/overtone) and
+OpenGL shaders a la [Shadertoy](http://www.shadertoy.com).
 
 [Overtone](https://github.com/overtone/overtone) is a toolkit for
 designing sound synthesizers and coding musical performances.  Based
@@ -16,18 +17,18 @@ powerful combination of a general-purpose, interactive, multi-threaded
 language built on the JVM with a state of the art, realtime sound
 synthesis server.
 
-[Shadertoy](http://www.shadertoy.com) is a website that exibits some
-amazing dynamic imagery--all procedurally generated via WebGL.  I
-think it is a fantastic example of how limitations and constraints
-allow you to focus on the artwork.  All the imagery is created via a
+[Shadertoy](http://www.shadertoy.com) is a website that exhibits some
+amazing dynamic imagery--all procedurally generated via WebGL.  It is
+a fantastic example of how limitations and constraints allow you to
+focus and create great artwork.  All the imagery is created via a
 functional per-pixel program called a Fragment Shader that is provided
 only a few inputs like the pixel position and current time.  The
 imagery is generated inside your Graphics Processing Unit (GPU) and
 offloads your CPU.  Visuals are more powerful than words, here.  Take
 a look at some fun examples:
 [isolines](https://www.shadertoy.com/view/MsXGz8),
-[flower](https://www.shadertoy.com/view/4dX3Rn),
-and [electron](https://www.shadertoy.com/view/MslGRn).
+[flower](https://www.shadertoy.com/view/4dX3Rn), and
+[electron](https://www.shadertoy.com/view/MslGRn).
 
 This library provides a way for you to create music and visuals that
 work together.  The example inspiration for Shadertone was [this
