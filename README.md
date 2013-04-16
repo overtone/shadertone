@@ -6,7 +6,7 @@
                                                                                      .
 
 A Clojure library designed to mix
-Musical Synthesis vi [Overtone](https://github.com/overtone/overtone) and
+Musical Synthesis via [Overtone](https://github.com/overtone/overtone) and
 OpenGL shaders a la [Shadertoy](http://www.shadertoy.com).
 
 [Overtone](https://github.com/overtone/overtone) is a toolkit for
