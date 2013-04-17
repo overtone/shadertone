@@ -1,3 +1,4 @@
+// Displays a constant color.  See 00demo_intro_tour.clj for explanation.
 uniform vec3 iRGB;
 
 void main(void)
