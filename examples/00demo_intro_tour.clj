@@ -1,7 +1,7 @@
 ;; ======================================================================
 ;; this code is meant to be stepped through interactively, not
 ;; executed at once.  It demonstrates some basic features of
-;; shadertone.
+;; shadertone.  Kind of an "introductory tour"...
 (ns demo0
   (:use [overtone.live]
         [overtone.synth.stringed])
