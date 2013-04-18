@@ -8,11 +8,8 @@
   (:require [shadertone.tone :as t]))
 
 ;; ======================================================================
-;; bring up a simple visualization.
-;; - the red component is just a ramp
-;; - the green component is based on the Overtone sound volume
-;; - the blue component is a sinusoid based on the time.
-(t/start "examples/simple.glsl")
+;; start an example shader showing movement and reaction to sounds
+(t/start "examples/sine_dance.glsl")
 
 ;; ======================================================================
 ;; now define some sounds...
@@ -41,16 +38,14 @@
 ;; ======================================================================
 ;; try some other visualizations...make sure you play with the sounds,
 ;; too.
-;; see that you can easily go fullscreen
-(t/start-fullscreen "examples/simple.glsl")
-;; or you can control width & height
-(t/start "examples/sine_dance.glsl"
+;; see how can control width & height
+(t/start "examples/quasicrystal.glsl"
          :width 800 :height 800
-         :title "Sine Dance")
-(t/start "examples/quasicrystal.glsl")
+         :title "Quasicrystal")
+;; see the sound waveform and FFT
 (t/start "examples/wave.glsl")
 
-;; these testcase sounds are mainly for the fft & wave shader
+;; these testcase sounds are mainly for the wave shader
 ;; (warning, a little loud)
 (demo 5 (* 1.25 (sin-osc))) ;; looks like a max to me
 (demo 15 (mix (sin-osc [(mouse-x 20 20000 EXP)
@@ -60,15 +55,27 @@
 (demo 15 (square (mouse-x 20 20000 EXP)))
 
 ;; ======================================================================
+;; bring up a simple visualization to consider learning with
+;; - the red component is just a ramp
+;; - the green component is based on the Overtone sound volume
+;; - the blue component is a sinusoid based on the time.
+(t/start "examples/simple.glsl")
+;; see that you can easily go fullscreen
+(t/start-fullscreen "examples/simple.glsl")
+
+;; ======================================================================
 ;; you can use textures, too.
 ;; use a keyword to tell where to place the waveform texture
 ;;   :iOvertoneAudio
 (t/start "examples/simpletex.glsl"
          :textures [:iOvertoneAudio "textures/granite.png" "textures/towel.png"])
+;; (sound doesn't affect the next two)
 (t/start "examples/simpletexa.glsl"
          :title "Simple Tex w/Alpha"
          :textures [:iOvertoneAudio "textures/granite_alpha.png" "textures/towel.png"])
-(t/start "examples/simplecube.glsl" :textures [:iOvertoneAudio "textures/buddha_*.jpg"])
+;; (use your mouse to look around)
+(t/start "examples/simplecube.glsl"
+         :textures [:iOvertoneAudio "textures/buddha_*.jpg"])
 
 ;; ======================================================================
 ;; the user-data api.  create atoms and send them to your shader
