@@ -43,7 +43,7 @@
          :width 800 :height 800
          :title "Quasicrystal")
 ;; see the sound waveform and FFT
-(t/start "examples/wave.glsl")
+(t/start "examples/wave.glsl" :textures [ :overtone-audio ])
 
 ;; these testcase sounds are mainly for the wave shader
 ;; (warning, a little loud)
@@ -66,16 +66,15 @@
 ;; ======================================================================
 ;; you can use textures, too.
 ;; use a keyword to tell where to place the waveform texture
-;;   :iOvertoneAudio
+;;   :overtone-audio
 (t/start "examples/simpletex.glsl"
-         :textures [:iOvertoneAudio "textures/granite.png" "textures/towel.png"])
+         :textures [:overtone-audio "textures/granite.png" "textures/towel.png"])
 ;; (sound doesn't affect the next two)
 (t/start "examples/simpletexa.glsl"
          :title "Simple Tex w/Alpha"
-         :textures [:iOvertoneAudio "textures/granite_alpha.png" "textures/towel.png"])
+         :textures ["textures/granite_alpha.png" "textures/towel.png"])
 ;; (use your mouse to look around)
-(t/start "examples/simplecube.glsl"
-         :textures [:iOvertoneAudio "textures/buddha_*.jpg"])
+(t/start "examples/simplecube.glsl" :textures ["textures/buddha_*.jpg"])
 
 ;; ======================================================================
 ;; the user-data api.  create atoms and send them to your shader
@@ -87,6 +86,11 @@
 ;; now you can adjust your data at-will and it will be sent to
 ;; the GPU at 60Hz
 (swap! my-rgb (fn [x] [0.55 0.95 0.75]))
+
+;; ======================================================================
+;; Finally, a feature that you cannot get from the shadertoy.com
+;; website.  Use the previously rendered frame as input to this frame.
+(t/start "examples/zoomwave.glsl" :textures [ :overtone-audio :previous-frame ])
 
 ;; stop the shader display
 (t/stop)

@@ -118,20 +118,21 @@
       (GL11/glDeleteTextures @fftwave-tex-id))))
 
 (defn- fix-fftwav-texture
-  "look for the :iOvertoneAudio keyword, set the fftwave-tex-num atom"
+  "look for the :overtone-audio keyword, set the fftwave-tex-num atom"
   [[i tex]]
-  (if (string? tex)
+  (if (or (string? tex)
+          (and (keyword? tex) (= :previous-frame tex)))
     tex ;; just return the string untouched
     (do
       (assert (keyword? tex))
-      (assert (= :iOvertoneAudio tex))
+      (assert (= :overtone-audio tex))
       (reset! fftwave-tex-num i) ;; NOTE: multiple entries will only use last one
       nil))) ;; return nil
 
 (defn- fix-texture-list
-  "look for the :iOvertoneAudio keyword and replace it with nil"
+  "look for the :overtone-audio keyword and replace it with nil"
   [textures]
-  (reset! fftwave-tex-num 0)
+  (reset! fftwave-tex-num 0) ;; FIXME this default could mess up other tex0 cases
   (map fix-fftwav-texture (map-indexed vector textures)))
 
 ;; ======================================================================

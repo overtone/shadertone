@@ -49,7 +49,7 @@
                         ;; textures
                         :tex-filenames       []
                         :tex-ids             []
-                        :tex-types           [] ; :cubemap, :previousFrame
+                        :tex-types           [] ; :cubemap, :previous-frame
                         ;; a user draw function
                         :user-fn             nil
                         }))
@@ -333,10 +333,10 @@
                             GL11/GL_UNSIGNED_BYTE
                             buffer)
          tex-id)
-       (if (= filename :previousFrame)
-         ;; :previousFrame initial setup
+       (if (= filename :previous-frame)
+         ;; :previous-frame initial setup
          (do
-           (println "setting up :previousFrame texture")
+           (println "setting up :previous-frame texture")
            (GL11/glBindTexture target tex-id)
            (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
            (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
@@ -348,7 +348,7 @@
   [tex-filename]
   (cond
    (cubemap-filename? tex-filename) :cubemap
-   (= :previousFrame tex-filename) :previousFrame
+   (= :previous-frame tex-filename) :previous-frame
    :default :twod))
 
 (defn- init-textures
@@ -452,9 +452,9 @@
       (when (nth tex-ids i)
         (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 i))
         (cond
-         (= :cubemaps (nth tex-types i))
+         (= :cubemap (nth tex-types i))
          (GL11/glBindTexture GL13/GL_TEXTURE_CUBE_MAP (nth tex-ids i))
-         (= :previousFrame (nth tex-types i))
+         (= :previous-frame (nth tex-types i))
          (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))
          :default
          (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i)))))
@@ -504,7 +504,7 @@
 
     ;; copy the rendered image
     (dotimes [i (count tex-ids)]
-      (when (= :previousFrame (nth tex-types i))
+      (when (= :previous-frame (nth tex-types i))
         (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))
         (GL11/glCopyTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGBA8 0 0 width height 0)
         (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)))
@@ -595,7 +595,7 @@
     (reduce #(and %1 %2)
             (for [fn full-filenames]
               (if (or (nil? fn)
-                      (keyword? fn)
+                      (and (keyword? fn) (= fn :previous-frame))
                       (.exists (File. fn)))
                 true
                 (do

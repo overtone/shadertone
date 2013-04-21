@@ -27,6 +27,6 @@ void main(void) {
     }
     rd = rotateX(rd, rotx);
     rd = rotateY(rd, roty);
-    vec4 c = textureCube(iChannel1, rd);
+    vec4 c = textureCube(iChannel0, rd);
     gl_FragColor = c;
 }
