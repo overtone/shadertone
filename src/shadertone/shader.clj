@@ -49,7 +49,7 @@
                         ;; textures
                         :tex-filenames       []
                         :tex-ids             []
-                        :tex-cubemaps        []
+                        :tex-types           [] ; :cubemap, :previousFrame
                         ;; a user draw function
                         :user-fn             nil
                         }))
@@ -139,7 +139,7 @@
   "do whatever it takes to modify shadertoy fragment shader source to
   be useable"
   [filename]
-  (let [{:keys [tex-cubemaps]} @globals
+  (let [{:keys [tex-types]} @globals
         ;;file-str (slurp filename)
         file-str (str "#version 120\n"
                       "uniform vec3      iResolution;\n"
@@ -147,13 +147,13 @@
                       "uniform float     iChannelTime[4];\n"
                       "uniform vec4      iMouse;\n"
                       (format "uniform sampler%s iChannel0;\n"
-                              (if (nth tex-cubemaps 0) "Cube" "2D"))
+                              (if (= :cubemap (nth tex-types 0)) "Cube" "2D"))
                       (format "uniform sampler%s iChannel1;\n"
-                              (if (nth tex-cubemaps 1) "Cube" "2D"))
+                              (if (= :cubemap (nth tex-types 1)) "Cube" "2D"))
                       (format "uniform sampler%s iChannel2;\n"
-                              (if (nth tex-cubemaps 2) "Cube" "2D"))
+                              (if (= :cubemap (nth tex-types 2)) "Cube" "2D"))
                       (format "uniform sampler%s iChannel3;\n"
-                              (if (nth tex-cubemaps 3) "CUBE" "2D"))
+                              (if (= :cubemap (nth tex-types 3)) "Cube" "2D"))
                       "uniform vec4      iDate;\n"
                       "\n"
                       (slurp filename))]
@@ -225,7 +225,7 @@
 (defn- cubemap-filename?
   "if a filename contains a '*' char, it is a cubemap"
   [filename]
-  (if filename
+  (if (string? filename)
     (not (nil? (re-find #"\*" filename)))
     false))
 
@@ -302,7 +302,8 @@
            tex-id)
          (load-texture filename GL11/GL_TEXTURE_2D tex-id 0))))
   ([filename target tex-id i]
-     (if filename
+     (if (string? filename)
+       ;; load from file
        (let [_                (println "Loading texture:" filename)
              image            (-> (FileInputStream. filename)
                                   (ImageIO/read))
@@ -316,30 +317,47 @@
              tex-image-target (if (= target GL13/GL_TEXTURE_CUBE_MAP)
                                 (+ i GL13/GL_TEXTURE_CUBE_MAP_POSITIVE_X)
                                 target)]
-      (GL11/glBindTexture target tex-id)
-      (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
-      (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
-      (if (== target GL11/GL_TEXTURE_2D)
-        (do
-          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL11/GL_REPEAT)
-          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL11/GL_REPEAT))
-        (do ;; CUBE_MAP
-          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
-          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)))
-      (GL11/glTexImage2D tex-image-target 0 internal-format
-                         (.getWidth image)  (.getHeight image) 0
-                         format
-                         GL11/GL_UNSIGNED_BYTE
-                         buffer)
-      tex-id))))
+         (GL11/glBindTexture target tex-id)
+         (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
+         (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
+         (if (== target GL11/GL_TEXTURE_2D)
+           (do
+             (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL11/GL_REPEAT)
+             (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL11/GL_REPEAT))
+           (do ;; CUBE_MAP
+             (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
+             (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)))
+         (GL11/glTexImage2D tex-image-target 0 internal-format
+                            (.getWidth image)  (.getHeight image) 0
+                            format
+                            GL11/GL_UNSIGNED_BYTE
+                            buffer)
+         tex-id)
+       (if (= filename :previousFrame)
+         ;; :previousFrame initial setup
+         (do
+           (println "setting up :previousFrame texture")
+           (GL11/glBindTexture target tex-id)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)
+           tex-id)))))
+
+(defn- get-texture-type
+  [tex-filename]
+  (cond
+   (cubemap-filename? tex-filename) :cubemap
+   (= :previousFrame tex-filename) :previousFrame
+   :default :twod))
 
 (defn- init-textures
   []
   (let [tex-ids (map load-texture (:tex-filenames @globals))
-        tex-cubemaps (map cubemap-filename? (:tex-filenames @globals))]
+        tex-types (map get-texture-type (:tex-filenames @globals))]
     (swap! globals assoc
-           :tex-ids      tex-ids
-           :tex-cubemaps tex-cubemaps)))
+           :tex-ids   tex-ids
+           :tex-types tex-types)))
 
 (defn- init-gl
   []
@@ -410,7 +428,7 @@
                 i-channel-time-loc i-channel-loc
                 channel-time-buffer
                 old-pgm-id old-fs-id
-                tex-ids tex-cubemaps
+                tex-ids tex-types
                 user-fn]} @globals
         cur-time    (/ (- last-time start-time) 1000.0)
         cur-date    (Calendar/getInstance)
@@ -433,9 +451,13 @@
     (dotimes [i (count tex-ids)]
       (when (nth tex-ids i)
         (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 i))
-        (if (nth tex-cubemaps i)
-          (GL11/glBindTexture GL13/GL_TEXTURE_CUBE_MAP (nth tex-ids i))
-          (GL11/glBindTexture GL11/GL_TEXTURE_2D       (nth tex-ids i)))))
+        (cond
+         (= :cubemaps (nth tex-types i))
+         (GL11/glBindTexture GL13/GL_TEXTURE_CUBE_MAP (nth tex-ids i))
+         (= :previousFrame (nth tex-types i))
+         (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))
+         :default
+         (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i)))))
 
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 1.0)
@@ -467,7 +489,6 @@
     ;; Put everything back to default (deselect)
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
     (GL11/glDisableClientState GL11/GL_VERTEX_ARRAY)
-
     ;; unbind textures
     (dotimes [i (count tex-ids)]
       (when (nth tex-ids i)
@@ -480,6 +501,13 @@
 
     (GL20/glUseProgram 0)
     ;;(println "draw errors?" (GL11/glGetError))
+
+    ;; copy the rendered image
+    (dotimes [i (count tex-ids)]
+      (when (= :previousFrame (nth tex-types i))
+        (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))
+        (GL11/glCopyTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGBA8 0 0 width height 0)
+        (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)))
     ))
 
 (defn- update
@@ -560,13 +588,14 @@
 
 (defn- files-exist
   "check to see that the filenames actually exist.  One tweak is to
-  allow nil filenames.  Those are important placeholders.  Another
-  tweak is to expand names for cubemap textures."
+  allow nil or keyword 'filenames'.  Those are important placeholders.
+  Another tweak is to expand names for cubemap textures."
   [filenames]
   (let [full-filenames (flatten (map expand-filename filenames))]
     (reduce #(and %1 %2)
             (for [fn full-filenames]
               (if (or (nil? fn)
+                      (keyword? fn)
                       (.exists (File. fn)))
                 true
                 (do
