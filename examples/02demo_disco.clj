@@ -14,7 +14,7 @@
 
 ;; now go find some Overtone demos like examples/compositions/funk.clj
 
-;; or try out some stuff in leipzig
+;; or try out your own drumkit via leipzig
 (def snare (sample (freesound-path 26903)))
 (def kick (sample (freesound-path 2086)))
 (def close-hihat (sample (freesound-path 802)))
@@ -27,10 +27,10 @@
       3 (close-hihat)
       4 (open-hihat)))
 (def melody (->> (lm/phrase [1 1 1 1 1 1 1 1]
-                            [2 0 2 0 2 0 2 2]) ;; <- play!
+                            [2 0 2 0 2 0 2 0]) ;; <- play!
                  (lm/with (lm/phrase
                            [1 1 1 1 1 1 1 1]
-                           [0 0 1 1 3 3 4 0])) ;; <- play!
+                           [0 0 1 0 3 1 4 0])) ;; <- play!
                  (lm/where :time (lm/bpm (* 4 60)))))
 (ll/jam melody)
 (def melody nil) ;; to turn it off
