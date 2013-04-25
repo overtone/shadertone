@@ -42,6 +42,9 @@
 (t/start "examples/quasicrystal.glsl"
          :width 800 :height 800
          :title "Quasicrystal")
+;; Here is a feature that you cannot get from the shadertoy.com
+;; website.  Use the previously rendered frame as input to this frame.
+(t/start "examples/zoomwave.glsl" :textures [ :overtone-audio :previous-frame ])
 ;; see the sound waveform and FFT
 (t/start "examples/wave.glsl" :textures [ :overtone-audio ])
 
@@ -86,11 +89,6 @@
 ;; now you can adjust your data at-will and it will be sent to
 ;; the GPU at 60Hz
 (swap! my-rgb (fn [x] [0.55 0.95 0.75]))
-
-;; ======================================================================
-;; Finally, a feature that you cannot get from the shadertoy.com
-;; website.  Use the previously rendered frame as input to this frame.
-(t/start "examples/zoomwave.glsl" :textures [ :overtone-audio :previous-frame ])
 
 ;; stop the shader display
 (t/stop)
