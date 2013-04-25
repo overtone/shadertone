@@ -19,11 +19,13 @@
   :url "http://github.com/rogerallen/shadertoneo"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.4.0"]
-                 [org.lwjgl.lwjgl/lwjgl "2.8.5"]
-                 [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
-                 [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
+  :dependencies [[org.clojure/clojure "1.5.1"]
+                 [org.lwjgl.lwjgl/lwjgl "2.9.0"]
+                 [org.lwjgl.lwjgl/lwjgl_util "2.9.0"]
+                 [org.lwjgl.lwjgl/lwjgl-platform "2.9.0"
                   :classifier    ~(lwjgl-classifier)
                   :native-prefix ""]
-                 [overtone "0.9.0-SNAPSHOT"]
-                 [watchtower "0.1.1"]])
+                 [overtone "0.8.1"]
+                 [watchtower "0.1.1"]]
+  ;; add leipzig for use in examples
+  :profiles {:dev {:dependencies [[leipzig "0.4.0"]]}})
