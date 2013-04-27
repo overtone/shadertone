@@ -51,12 +51,13 @@ The basics are:
 
 1. git clone this repo.  We'll make a lein/clojar library available, eventually.
 2. Make sure you have leiningen 2.1.0 or later.  This fixed an issue with loading the LWJGL libraries.
-2. Create your code in the examples/yourcode.clj and examples/yourshader.glsl.  See below.
-3. Start with something basic in both files to be certain it works.
-4. You can edit both files "live".  Use your favorite REPL environment
+3. Bring up your favorite REPL and step through the demo files in the examples directory.  There are examples of all of the various shadertone features in the demos.
+4. When you want to create your own code, make some files like examples/yourcode.clj and examples/yourshader.glsl.  See below.
+5. Start with something basic in both files to be certain it works.
+6. You can edit both files "live".  Use your favorite REPL environment
 to adjust your Clojure code.  Shadertone will watch for edits to your
 active shader and load them when you save the file.
-5. Have fun!
+7. Have fun!
 
 Here is a simple template for yourcode.clj
 
@@ -123,7 +124,7 @@ uniform vec4      iDate;           // (year, month, day, time in seconds)
 
 #### Overtone inputs:
 
-There are two inputs from Overtone that are created for you.
+There are three inputs from Overtone that you can use.
 
 First is a tap on the output volume.  It is sent to the variable
 `iOvertoneVolume` which you should define at the top of your shader if
@@ -133,12 +134,24 @@ you start your window with `shadertone.tone/start`.
 uniform float iOvertoneVolume; // tap of system volume
 ```
 
-Next, if you use the keyword :iOvertoneAudio as a texture name,
-Overtone will sends the output sound's frequency spectrum (FFT) and
-audio waveform data to the iChannel[] texture you specify.  For
-example, if you want this data to go to the first texture, add the
-argument `:textures [:iOvertoneAudio]` to your `shadertone.tone/start`
-call.  This is similar to www.shadertoy.com's audio textures.
+Next, are two special textures.  First, if you use the keyword
+:overtone-audio as a texture name, Overtone will send the output
+sound's frequency spectrum (FFT) and audio waveform data to the
+iChannel texture you specify.  This is
+similar to www.shadertoy.com's audio textures.  The first row of the
+texture contains the FFT data.  The second row of the texture contains
+the current waveform data.
+
+Second, if you use the :previous-frame keyword as a texture name,
+Shadertone will capture the framebuffers you render and allow you to
+use this as input for the next frame.
+
+As an example, if you want these textures data to go to the first two
+textures, add the argument
+`:textures [:overtone-audio :previous-frame]`
+to your `shadertone.tone/start` call.  Then, in your
+glsl code use `texture2D(iChannel0,uv).r` to access the audio and
+`texture2D(iChannel1,uv).rgb` to access the previous frame.
 
 But that isn't all.  If you want to create your own inputs from
 Overtone to Shadertone, you can create atoms that hold either a
@@ -179,7 +192,7 @@ window.
 * `:width` & `:height` are the window size in pixels
 * `:title` is the window title
 * `:textures` are a vector of texture filenames or the
-  `:iOvertoneAudio` keyword.  Up to 4 textures are allowed.
+  special texture keywords.  Up to 4 textures are allowed.
 * `:user-data` is a map of strings to atoms.  The strings must match a
   uniform variable name in your shader.  The atoms are used to
   communicate values to those uniform variable names.
@@ -218,10 +231,4 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-### Exceptions
-
-The buddha textures are the work of Emil Persson, aka Humus and are
-licensed under a Creative Commons Attribution 3.0 Unported License.
-See the
-[readme](https://github.com/overtone/shadertone/blob/master/textures/buddha_readme.txt)
-for more details.
+For full license information, see the LICENSE file.
