@@ -188,9 +188,11 @@
           height     600
           title      "shadertone"
           textures   []
-          user-data  {"iOvertoneVolume" (atom 0.0)}
+          user-data  {}
           user-fn    tone-default-fn}}]
-  (let [textures (fix-texture-list textures)]
+  (let [textures (fix-texture-list textures)
+        user-data (merge-with #(or %1 %2)
+                              user-data {"iOvertoneVolume" (atom 0.0)})]
     (reset! tone-user-data user-data)
     (s/start shader-filename
              :width    width
@@ -200,12 +202,16 @@
              :user-fn  user-fn)))
 
 (defn start-fullscreen
+  "Start a new fullscreen shader display.  Pass in optional user-data and user-fn
+  for custom control"
   [shader-filename
    &{:keys [textures user-data user-fn]
      :or {textures   []
-          user-data  {"iOvertoneVolume" (atom 0.0)}
+          user-data  {}
           user-fn    tone-default-fn}}]
-  (let [textures (fix-texture-list textures)]
+  (let [textures (fix-texture-list textures)
+        user-data (merge-with #(or %1 %2)
+                              user-data {"iOvertoneVolume" (atom 0.0)})]
     (reset! tone-user-data user-data)
     (s/start-fullscreen shader-filename
                         :textures textures
