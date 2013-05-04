@@ -47,11 +47,11 @@ I hope this allows you to create some happiness.  Enjoy!
 
 ## Usage
 
-The library is just coming together, so expect change.
+The library is just coming together, so expect change.  There are two main ways to use the code.  If you want the latest code or are just exploring what shadertone can do, you should clone the repo from github.  But, if you have a project idea and want to use shadertone as part of that project, you can specify the current version in your Leiningen project.clj to download the library from clojars.
 
-The basics are:
+### Option 1: clone this repository
 
-1. git clone this repo.  We'll make a lein/clojar library available, eventually.
+1. See top of https://github.com/overtone/shadertone for details on how to clone the repo.
 2. Make sure you have leiningen 2.1.0 or later.  This fixed an issue with loading the LWJGL libraries.
 3. Bring up your favorite REPL and step through the demo files in the examples directory.  There are examples of all of the various shadertone features in the demos.
 4. When you want to create your own code, make some files like examples/yourcode.clj and examples/yourshader.glsl.  See below.
@@ -60,6 +60,44 @@ The basics are:
 to adjust your Clojure code.  Shadertone will watch for edits to your
 active shader and load them when you save the file.
 7. Have fun!
+
+### Option 2: download from clojars
+
+1. In your project.clj,
+    1.1. add `[shadertone "0.1.0"]` to your dependencies.
+    1.2. add lwjgl handling.  This is a bit involved since it requires native libs.
+        1.1.1. add this to your dependencies
+            ```
+            [org.lwjgl.lwjgl/lwjgl "2.8.5"]
+            [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
+            [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
+             :classifier    ~(lwjgl-classifier)
+             :native-prefix ""]
+            ```
+        1.1.1. add code like this to compute the `:classifier`
+            ```
+            (require 'leiningen.core.eval)
+
+            (def LWJGL-CLASSIFIER
+              "Per os native code classifier"
+              {:macosx  "natives-osx"
+               :linux   "natives-linux"
+               :windows "natives-windows"})
+
+            (defn lwjgl-classifier
+              "Return the os-dependent lwjgl native-code classifier"
+              []
+              (let [os (leiningen.core.eval/get-os)]
+                (get LWJGL-CLASSIFIER os)))
+            ```
+2. Add something like `(:require [shadertone.tone :as t])` or `(:require [shadertone.shader :as s])` to your namespace.
+3. Have fun!
+
+Since this could be a bit confusing, take a look at
+https://github.com/rogerallen/sot as a simple example of using
+shadertone via Leiningen.
+
+### yourcode.clj template
 
 Here is a simple template for yourcode.clj
 

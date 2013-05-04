@@ -14,11 +14,11 @@
   (let [os (leiningen.core.eval/get-os)]
     (get LWJGL-CLASSIFIER os)))
 
-(defproject shadertone "0.1.0-SNAPSHOT"
+(defproject shadertone "0.1.0"
   :description "shadertoy + overtone"
   :url "http://github.com/rogerallen/shadertoneo"
-  :license {:name "Eclipse Public License"
-            :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :license {:name "MIT License"
+            :url "https://github.com/overtone/shadertone/blob/master/LICENSE"}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.lwjgl.lwjgl/lwjgl "2.8.5"]
                  [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
