@@ -67,15 +67,15 @@ active shader and load them when you save the file.
     1.1. add `[shadertone "0.1.0"]` to your dependencies.
     1.2. add lwjgl handling.  This is a bit involved since it requires native libs.
         1.1.1. add this to your dependencies
-            ```
+
             [org.lwjgl.lwjgl/lwjgl "2.8.5"]
             [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
             [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
              :classifier    ~(lwjgl-classifier)
              :native-prefix ""]
-            ```
+
         1.1.1. add code like this to compute the `:classifier`
-            ```
+
             (require 'leiningen.core.eval)
 
             (def LWJGL-CLASSIFIER
@@ -89,7 +89,7 @@ active shader and load them when you save the file.
               []
               (let [os (leiningen.core.eval/get-os)]
                 (get LWJGL-CLASSIFIER os)))
-            ```
+
 2. Add something like `(:require [shadertone.tone :as t])` or `(:require [shadertone.shader :as s])` to your namespace.
 3. Have fun!
 
