@@ -37,7 +37,9 @@ the fragment shader visual code live while the music plays.  This
 library gives you the ability to hack on *both* the visual and audio
 code at the same time.
 
-If you'd like to see how this all started, check out [the
+I've created a basic demo screencast that you can [watch
+here](https://www.youtube.com/watch?v=_8T15N3ZvYc).  If you'd like to
+see how this all started, check out [the
 announcement](https://groups.google.com/forum/?fromgroups=#!topic/overtone/7bQSJUUviBw)
 and [video preview](https://www.youtube.com/watch?v=UMg8Td5Gqhk).
 
