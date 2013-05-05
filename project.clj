@@ -15,8 +15,8 @@
     (get LWJGL-CLASSIFIER os)))
 
 (defproject shadertone "0.2.0-SNAPSHOT"
-  :description "shadertoy + overtone"
-  :url "http://github.com/rogerallen/shadertoneo"
+  :description "A clojure library designed to mix musical synthesis via Overtone and dynamic visuals a la www.shadertoy.com"
+  :url "http://github.com/overtone/shadertone"
   :license {:name "MIT License"
             :url "https://github.com/overtone/shadertone/blob/master/LICENSE"}
   :dependencies [[org.clojure/clojure "1.5.1"]
