@@ -14,7 +14,7 @@
   (let [os (leiningen.core.eval/get-os)]
     (get LWJGL-CLASSIFIER os)))
 
-(defproject shadertone "0.1.0"
+(defproject shadertone "0.2.0-SNAPSHOT"
   :description "shadertoy + overtone"
   :url "http://github.com/rogerallen/shadertoneo"
   :license {:name "MIT License"
