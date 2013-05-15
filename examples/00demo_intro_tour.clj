@@ -90,6 +90,21 @@
 ;; the GPU at 60Hz
 (swap! my-rgb (fn [x] [0.55 0.95 0.75]))
 
+;; NEW in 0.2.0, communicate internal taps from a synth to the shader
+(defsynth vvv
+  []
+  (let [a (+ 300 (* 50 (sin-osc:kr (/ 1 3))))
+        b (+ 300 (* 100 (sin-osc:kr (/ 1 5))))
+        _ (tap "a" 60 (a2k a))
+        _ (tap "b" 60 (a2k b))]
+    (out 0 (pan2 (+ (sin-osc a)
+                    (sin-osc b))))))
+(def v (vvv))
+(t/start "examples/vvv.glsl"
+         :user-data { "iA" (atom {:synth v :tap "a"})
+                      "iB" (atom {:synth v :tap "b"}) })
+(stop)
+
 ;; stop the shader display
 (t/stop)
 

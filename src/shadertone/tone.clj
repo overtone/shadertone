@@ -154,13 +154,15 @@
     :pre-draw
     (doseq [key (keys @tone-user-data)]
       (let [loc (@tone-user-locs key)
-            val (if (= key "iOvertoneVolume")
-                  ;; special handling for volume
+            val (deref (@tone-user-data key))
+            val (if (map? val)
+                  ;; special handling for maps--expected to be synth taps
+                  ;; FIXME?  is a map okay? or should it be a record?
                   (try
-                    (float @(get-in voltap-synth [:taps "system-vol"]))
+                    (float @(get-in (:synth val) [:taps (:tap val)]))
                     (catch Exception e 0.0))
                   ;; other user data
-                  (deref (@tone-user-data key)))]
+                  val)]
         ;;(println key loc val)
         (if (float? val)
           (GL20/glUniform1f loc val)
@@ -192,7 +194,9 @@
           user-fn    tone-default-fn}}]
   (let [textures (fix-texture-list textures)
         user-data (merge-with #(or %1 %2)
-                              user-data {"iOvertoneVolume" (atom 0.0)})]
+                              user-data {"iOvertoneVolume"
+                                         (atom {:synth voltap-synth
+                                                :tap   "system-vol"})})]
     (reset! tone-user-data user-data)
     (s/start shader-filename
              :width    width
@@ -211,7 +215,9 @@
           user-fn    tone-default-fn}}]
   (let [textures (fix-texture-list textures)
         user-data (merge-with #(or %1 %2)
-                              user-data {"iOvertoneVolume" (atom 0.0)})]
+                              user-data {"iOvertoneVolume"
+                                         (atom {:synth voltap-synth
+                                                :tap   "system-vol"})})]
     (reset! tone-user-data user-data)
     (s/start-fullscreen shader-filename
                         :textures textures
