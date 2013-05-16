@@ -10,9 +10,11 @@
 ;; more translated tweets in
 ;; https://github.com/rogerallen/explore_overtone/blob/master/src/explore_overtone/redFrik.clj
 (defsynth red-frik-329311535723839489
-  []
+  [gate 1]
   (out 0
-       (* 2.0
+       (* 0.8
+          ;; give a fade-in, fade-out
+          (env-gen (adsr 3.0 0.1 1.0 3.0) :gate gate :action FREE)
           (rlpf:ar
            (distort
             (leak-dc:ar
@@ -33,10 +35,12 @@
   (t/start "examples/redFrik.glsl"
            :width 1280 :height 720
            :user-data {"t0" (atom {:synth rf :tap "t0"})})
-  (println "Playing a demo for 100 seconds...")
-  (println "  Inspired by from https://twitter.com/redFrik/status/329311535723839489")
-  (Thread/sleep (* 100 1000))
+  (println "Playing a 60 second demo inspired by")
+  (println "https://twitter.com/redFrik/status/329311535723839489\nEnjoy...")
+  (Thread/sleep (* 60 1000))
   (println "Done.")
+  (ctl rf :gate 0) ;; fade out
+  (Thread/sleep (* 3 1000))
   (t/stop)
   (stop)
   (System/exit 0))
