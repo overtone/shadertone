@@ -40,7 +40,7 @@ code at the same time.
 I've created a few screencast demos that you can watch:
 * [Basic features overview](https://www.youtube.com/watch?v=_8T15N3ZvYc) from the [intro tour](https://github.com/overtone/shadertone/blob/master/examples/00demo_intro_tour.clj)
 * [Livecoding demo](https://www.youtube.com/watch?v=X7EMPYlGgFc) which you can try via `lein run`
-* [A quick teaser](https://www.youtube.com/watch?v=kyL3xc7MzR0) from the [disco example]
+* [A quick teaser](https://www.youtube.com/watch?v=kyL3xc7MzR0) from the [disco example](https://github.com/overtone/shadertone/blob/master/examples/02demo_disco.clj)
 * [Video preview](https://www.youtube.com/watch?v=UMg8Td5Gqhk) showing the very early stages of shadertone.
 
 If you're interested, here's [the original announcement](https://groups.google.com/forum/?fromgroups=#!topic/overtone/7bQSJUUviBw) on the Overtone Google Group.
