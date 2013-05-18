@@ -37,11 +37,13 @@ the fragment shader visual code live while the music plays.  This
 library gives you the ability to hack on *both* the visual and audio
 code at the same time.
 
-I've created a basic demo screencast that you can [watch
-here](https://www.youtube.com/watch?v=_8T15N3ZvYc).  If you'd like to
-see how this all started, check out [the
-announcement](https://groups.google.com/forum/?fromgroups=#!topic/overtone/7bQSJUUviBw)
-and [video preview](https://www.youtube.com/watch?v=UMg8Td5Gqhk).
+I've created a few screencast demos that you can watch:
+* [basic features overview](https://www.youtube.com/watch?v=_8T15N3ZvYc)
+* [livecoding demo](https://www.youtube.com/watch?v=X7EMPYlGgFc)
+* [quick teaser](https://www.youtube.com/watch?v=kyL3xc7MzR0)
+* [video preview](https://www.youtube.com/watch?v=UMg8Td5Gqhk)
+
+If you're interested, here's [the original announcement](https://groups.google.com/forum/?fromgroups=#!topic/overtone/7bQSJUUviBw) on the Overtone Google Group.
 
 I hope this allows you to create some happiness.  Enjoy!
 
@@ -67,14 +69,14 @@ active shader and load them when you save the file.
     1. add `[shadertone "0.1.0"]` to your `:dependencies`.
     2. add lwjgl handling.  This is a bit involved since it requires native libs.
         1. add this to your `:dependencies`
-                        
+
                 [org.lwjgl.lwjgl/lwjgl "2.8.5"]
                 [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
                 [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
                  :classifier    ~(lwjgl-classifier)
                  :native-prefix ""]
         1. at the top, add code like this to compute the `:classifier`
-                
+
                 (require 'leiningen.core.eval)
                 (def LWJGL-CLASSIFIER
                     "Per os native code classifier"
@@ -216,6 +218,26 @@ Via a call like this:
 (swap! my-rgb (fn [x] [0.55 0.95 0.75]))
 ```
 
+##### Synth Inputs
+
+New in 0.2.0, you can `tap` a synth value and easily communicate that
+value to your GLSL fragment shader.  See the "vvv" synth example in
+the 00_demo_intro_tour.clj demo and also the core.clj usage.
+
+In a nutshell, you define your synth and add a call to `(tap "a" 60
+a)` where `"a"` is the name of your tap, it is updated 60 times per
+second and the `a` synth variable is some interesting value you want
+to communicate.
+
+Then in your `start` call, the `:user-data` map should include a
+reference to that `tap`.  Like `:user-data { "iA" (atom {:synth v :tap
+"a"}) }` to call the value `iA` as input to your GLSL shader, if your
+synth was instantiated as `v`.
+
+Finally, in your GLSL fragment shader, define your new input value as
+`uniform float iA;` and use `iA` to control your shader in interesting
+ways.
+
 #### Clojure API
 
 To use Shadertone, the main routine you will use are in the
@@ -243,6 +265,15 @@ There is also a similar api in `shadertone.shader` that does not
 depend on Overtone.  This could be useful for other interactive
 Clojure libraries.  I'd like to know if this type of use case is
 desired, so please get in touch via Issue #14.
+
+## Acknowledgements
+
+Many thanks to those who have helped directly and indirectly to make
+Shadertone.  Specifically, I'd like to thank:
+
+* Sam Aaron for helping organize the code and developing the public interface.
+* Iñigo Quílez for creating Shadertoy.
+* Fredrik Olofsson (@redFrik) for his fantastic sctweets.
 
 ## License
 
