@@ -1,4 +1,6 @@
-(ns shadertone.shader
+(ns #^{:author "Roger Allen"
+       :doc "Shadertoy-like core library."}
+  shadertone.shader
   (:require [watchtower.core :as watcher])
   (:import (java.awt.image BufferedImage DataBuffer DataBufferByte)
            (java.io File FileInputStream)

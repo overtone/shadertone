@@ -1,5 +1,6 @@
-(ns shadertone.tone
-  ;; FIXME whittle this :use down to requirements
+(ns #^{:author "Roger Allen"
+       :doc "Overtone library code."}
+  shadertone.tone
   (:use [overtone.helpers lib]
         [overtone.libs event deps]
         [overtone.sc defaults synth ugens buffer node foundation-groups bus]
