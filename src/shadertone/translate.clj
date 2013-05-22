@@ -4,6 +4,15 @@
   (:require [clojure.walk :as walk]))
 
 ;; WORK IN PROGRESS -- Barely working...
+;; TODO:
+;;   x fn calls
+;;   o for(;;) {}
+;;   o while() {}
+;;   o if() {}
+;;   o if() {} else {}
+;;   o switch () { case integer: ... break; ... default: ... }
+;;   o break; continue;
+;;   x void main() {}
 
 ;; ======================================================================
 ;; translation functions for a dialect of clojure-like s-expressions
@@ -12,7 +21,9 @@
   (let [[type name value] z
         ;;_ (println "shader-assign-str-0:" type name value)
         type-str (if (nil? type) "" (format "%s " (str type)))
-        asn-str (format "%s%s = %s;\n" type-str name (shader-walk (list value)))]
+        asn-str (format "%s%s = %s;\n"
+                        type-str name
+                        (shader-walk (list value)))]
     ;;(println "shader-assign-str-1:" asn-str)
     asn-str))
 (defn- shader-walk-let [x]
@@ -29,7 +40,8 @@
   ;;(println "shader-walk-defn-args-0" x (empty? x))
   (if (empty? x)
     "void"
-    (apply str (interpose \, (map #(apply (partial format "%s %s") %) (partition 2 x))))))
+    (apply str (interpose \, (map #(apply (partial format "%s %s") %)
+                                  (partition 2 x))))))
 (defn- shader-walk-slfn [x]
   ;;(println "shader-walk-slfn-0:" x)
   (let [fn-str (format "%s %s(%s) {\n%s}\n"
