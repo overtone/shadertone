@@ -45,7 +45,8 @@
         post-fn (if (= (first (str (first x))) \.) (str (first x)) "")
         fn-str (format "%s(%s)%s"
                        pre-fn
-                       (apply str (interpose \, (map shader-walk (rest x))))
+                       (apply str (interpose \, (map #(shader-walk (list %))
+                                                     (rest x))))
                        post-fn)]
     ;;(println "shader-walk-fn-1:" fn-str)
     fn-str))
@@ -64,7 +65,7 @@
 (defn- inner-walk
   [x]
   (do
-    ;;(println "in:  " x);; "list?" (list? x) "vector?" (vector? x) "symbol?" (symbol? x))
+    ;;(println "in:  " x)
     (cond
      (list? x)     (cond
                     (= "slfn" (str (first x))) (shader-walk-slfn x)
