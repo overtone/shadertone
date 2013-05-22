@@ -97,12 +97,13 @@
      :else         (identity x))))
 (defn- shader-walk [form]
   (walk/walk inner-walk outer-walk form))
-(defn- create-shader
-  [& params]
-  (shader-walk (first params)))
 
 ;; ======================================================================
 ;; Public API
+(defn create-shader
+  [& params]
+  (shader-walk (first params)))
+
 (defmacro defshader
   "macro to define the fragment shader. returns shader as a string."
   [name body]
