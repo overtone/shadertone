@@ -7,12 +7,12 @@
   (testing "The simplest shader."
     (let [_ (defshader test-shader
               '((slfn void main []
-                      (slet [nil gl_FragCoord (vec4 1.0 0.5 0.5 1.0)]
+                      (slet [nil gl_FragColor (vec4 1.0 0.5 0.5 1.0)]
                             nil))))
           test-str (str test-shader)
           gold-str
 "void main(void) {
-gl_FragCoord = vec4(1.0,0.5,0.5,1.0);
+gl_FragColor = vec4(1.0,0.5,0.5,1.0);
 }
 "
           ]
