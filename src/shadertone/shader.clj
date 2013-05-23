@@ -34,6 +34,7 @@
                         :vertices-count      0
                         ;; shader program
                         :shader-filename     ""
+                        :shader-str          ""
                         :vs-id               0
                         :fs-id               0
                         :pgm-id              0
@@ -72,13 +73,37 @@
            (if (< i (count tex-filenames))
              (nth tex-filenames i)))))
 
+(defn- slurp-fs
+  "do whatever it takes to modify shadertoy fragment shader source to
+  be useable"
+  [filename]
+  (let [{:keys [tex-types]} @globals
+        ;;file-str (slurp filename)
+        file-str (str "#version 120\n"
+                      "uniform vec3      iResolution;\n"
+                      "uniform float     iGlobalTime;\n"
+                      "uniform float     iChannelTime[4];\n"
+                      "uniform vec4      iMouse;\n"
+                      (format "uniform sampler%s iChannel0;\n"
+                              (if (= :cubemap (nth tex-types 0)) "Cube" "2D"))
+                      (format "uniform sampler%s iChannel1;\n"
+                              (if (= :cubemap (nth tex-types 1)) "Cube" "2D"))
+                      (format "uniform sampler%s iChannel2;\n"
+                              (if (= :cubemap (nth tex-types 2)) "Cube" "2D"))
+                      (format "uniform sampler%s iChannel3;\n"
+                              (if (= :cubemap (nth tex-types 3)) "Cube" "2D"))
+                      "uniform vec4      iDate;\n"
+                      "\n"
+                      (slurp filename))]
+    file-str))
+
 (defn- init-window
   "Initialise a shader-powered window with the specified
    display-mode. If true-fullscreen? is true, fullscreen mode is
    attempted if the display-mode is compatible. See display-modes for a
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
-  [display-mode title shader-filename tex-filenames true-fullscreen? user-fn display-sync-hz]
+  [display-mode title shader-filename shader-str tex-filenames true-fullscreen? user-fn display-sync-hz]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -95,6 +120,9 @@
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename
+           :shader-str      (if (nil? shader-filename)
+                              shader-str
+                              (slurp-fs (:shader-filename @globals)))
            :tex-filenames   tex-filenames
            :user-fn         user-fn)
     (Display/setDisplayMode display-mode)
@@ -137,30 +165,6 @@
        "    gl_Position = in_Position;\n"
        "}\n"))
 
-(defn- slurp-fs
-  "do whatever it takes to modify shadertoy fragment shader source to
-  be useable"
-  [filename]
-  (let [{:keys [tex-types]} @globals
-        ;;file-str (slurp filename)
-        file-str (str "#version 120\n"
-                      "uniform vec3      iResolution;\n"
-                      "uniform float     iGlobalTime;\n"
-                      "uniform float     iChannelTime[4];\n"
-                      "uniform vec4      iMouse;\n"
-                      (format "uniform sampler%s iChannel0;\n"
-                              (if (= :cubemap (nth tex-types 0)) "Cube" "2D"))
-                      (format "uniform sampler%s iChannel1;\n"
-                              (if (= :cubemap (nth tex-types 1)) "Cube" "2D"))
-                      (format "uniform sampler%s iChannel2;\n"
-                              (if (= :cubemap (nth tex-types 2)) "Cube" "2D"))
-                      (format "uniform sampler%s iChannel3;\n"
-                              (if (= :cubemap (nth tex-types 3)) "Cube" "2D"))
-                      "uniform vec4      iDate;\n"
-                      "\n"
-                      (slurp filename))]
-    file-str))
-
 (defn- load-shader
   [shader-str shader-type]
   (let [shader-id         (GL20/glCreateShader shader-type)
@@ -175,10 +179,12 @@
 (defn- init-shaders
   []
   (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
-        fs-shader             (slurp-fs (:shader-filename @globals))
+        ;;fs-shader             (slurp-fs (:shader-filename @globals))
         ;;_ (println "Here is the shader...\n" fs-shader)
-        _                     (println "Loading shader:" (:shader-filename @globals))
-        fs-id                 (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
+        _                     (if (nil? (:shader-filename @globals))
+                                (println "Loading shader from string")
+                                (println "Loading shader from file:" (:shader-filename @globals)))
+        fs-id                 (load-shader (:shader-str @globals) GL20/GL_FRAGMENT_SHADER)
         pgm-id                (GL20/glCreateProgram)
         _                     (GL20/glAttachShader pgm-id vs-id)
         _                     (GL20/glAttachShader pgm-id fs-id)
@@ -415,7 +421,8 @@
                :i-channel-time-loc i-channel-time-loc
                :i-mouse-loc i-mouse-loc
                :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
-               :i-date-loc i-date-loc)))))
+               :i-date-loc i-date-loc
+               :shader-str fs-shader)))))
 
 (defn- draw
   []
@@ -560,8 +567,8 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [mode shader-filename tex-filenames title true-fullscreen? user-fn display-sync-hz]
-  (init-window mode title shader-filename tex-filenames true-fullscreen? user-fn display-sync-hz)
+  [mode shader-filename shader-str tex-filenames title true-fullscreen? user-fn display-sync-hz]
+  (init-window mode title shader-filename shader-str tex-filenames true-fullscreen? user-fn display-sync-hz)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
@@ -605,9 +612,10 @@
                   false))))))
 
 (defn- sane-user-inputs
-  [mode shader-filename textures title true-fullscreen? user-fn]
+  [mode shader-filename shader-str textures title true-fullscreen? user-fn]
   (and (good-tex-count textures)
-       (files-exist (flatten [shader-filename textures]))))
+       (files-exist (flatten [shader-filename textures]))
+       (not (and (nil? shader-filename) (nil? shader-str)))))
 
 ;; watch the shader directory & reload the current shader if it changes.
 (defn- if-match-reload-shader
@@ -697,18 +705,20 @@
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
-  [mode shader-filename textures title
+  [mode shader-filename shader-str textures title
    true-fullscreen? user-fn display-sync-hz]
-  (when (sane-user-inputs mode shader-filename textures title true-fullscreen? user-fn)
+  (when (sane-user-inputs mode shader-filename shader-str textures title true-fullscreen? user-fn)
     ;; stop the current shader
     (stop)
     ;; start the watcher
-    (swap! watcher-future
-           (fn [x] (start-watcher (.getParent (File. shader-filename)))))
+    (when-not (nil? shader-filename)
+      (swap! watcher-future
+             (fn [x] (start-watcher (.getParent (File. shader-filename))))))
     ;; start the requested shader
     (.start (Thread.
              (fn [] (run-thread mode
                                shader-filename
+                               shader-str
                                textures
                                title
                                true-fullscreen?
@@ -720,16 +730,18 @@
    decorated (i.e. have a title bar)."
   [shader-filename
    &{:keys [width height title display-sync-hz
-            textures user-fn]
-     :or {width   600
-          height  600
-          title   "shadertone"
+            textures user-fn
+            shader-str]
+     :or {width           600
+          height          600
+          title           "shadertone"
           display-sync-hz 60
-          textures []
-          user-fn nil}}]
+          textures        []
+          user-fn         nil
+          shader-str      nil}}]
   (let [mode (DisplayMode. width height)]
     (decorate-display!)
-    (start-shader-display mode shader-filename textures title false user-fn display-sync-hz)))
+    (start-shader-display mode shader-filename shader-str textures title false user-fn display-sync-hz)))
 
 (defn start-fullscreen
   "Start a new shader display in pseudo fullscreen mode. This creates a
