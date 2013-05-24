@@ -186,13 +186,14 @@
   "Start a new shader display.  Pass in optional user-data and user-fn
   for custom control"
   [shader-filename
-   &{:keys [width height title textures user-data user-fn]
+   &{:keys [width height title textures user-data user-fn shader-str]
      :or {width      600
           height     600
           title      "shadertone"
           textures   []
           user-data  {}
-          user-fn    tone-default-fn}}]
+          user-fn    tone-default-fn
+          shader-str nil}}]
   (let [textures (fix-texture-list textures)
         user-data (merge-with #(or %1 %2)
                               user-data {"iOvertoneVolume"
@@ -200,20 +201,22 @@
                                                 :tap   "system-vol"})})]
     (reset! tone-user-data user-data)
     (s/start shader-filename
-             :width    width
-             :height   height
-             :title    title
-             :textures textures
-             :user-fn  user-fn)))
+             :width      width
+             :height     height
+             :title      title
+             :textures   textures
+             :user-fn    user-fn
+             :shader-str shader-str)))
 
 (defn start-fullscreen
   "Start a new fullscreen shader display.  Pass in optional user-data and user-fn
   for custom control"
   [shader-filename
-   &{:keys [textures user-data user-fn]
+   &{:keys [textures user-data user-fn shader-str]
      :or {textures   []
           user-data  {}
-          user-fn    tone-default-fn}}]
+          user-fn    tone-default-fn
+          shader-str nil}}]
   (let [textures (fix-texture-list textures)
         user-data (merge-with #(or %1 %2)
                               user-data {"iOvertoneVolume"
@@ -221,8 +224,9 @@
                                                 :tap   "system-vol"})})]
     (reset! tone-user-data user-data)
     (s/start-fullscreen shader-filename
-                        :textures textures
-                        :user-fn  user-fn)))
+                        :textures   textures
+                        :user-fn    user-fn
+                        :shader-str shader-str)))
 
 (defn stop
   []

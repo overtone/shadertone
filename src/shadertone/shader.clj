@@ -751,10 +751,11 @@
    resolution. There are therefore no OS controls for closing the shader
    window. Use (stop) to close things manually. "
   [shader-filename
-   &{:keys [display-sync-hz textures user-fn]
+   &{:keys [display-sync-hz textures user-fn shader-str]
      :or {display-sync-hz 60
-          textures [nil]
-          user-fn nil}}]
+          textures        [nil]
+          user-fn         nil
+          shader-str      nil}}]
      (let [mode (first (display-modes))]
        (undecorate-display!)
-       (start-shader-display mode shader-filename textures "" false user-fn display-sync-hz)))
+       (start-shader-display mode shader-filename shader-str textures "" false user-fn display-sync-hz)))
