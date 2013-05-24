@@ -1,7 +1,8 @@
 (ns #^{:author "Roger Allen"
        :doc "Shadertoy-like core library."}
   shadertone.shader
-  (:require [watchtower.core :as watcher])
+  (:require [watchtower.core :as watcher]
+            clojure.string)
   (:import (java.awt.image BufferedImage DataBuffer DataBufferByte)
            (java.io File FileInputStream)
            (java.nio IntBuffer FloatBuffer ByteOrder)
