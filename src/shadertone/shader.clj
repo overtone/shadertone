@@ -97,6 +97,20 @@
                       (slurp filename))]
     file-str))
 
+(defn- cubemap-filename?
+  "if a filename contains a '*' char, it is a cubemap"
+  [filename]
+  (if (string? filename)
+    (not (nil? (re-find #"\*" filename)))
+    false))
+
+(defn- get-texture-type
+  [tex-filename]
+  (cond
+   (cubemap-filename? tex-filename) :cubemap
+   (= :previous-frame tex-filename) :previous-frame
+   :default :twod))
+
 (defn- init-window
   "Initialise a shader-powered window with the specified
    display-mode. If true-fullscreen? is true, fullscreen mode is
@@ -109,7 +123,8 @@
         pixel-format        (PixelFormat.)
         context-attributes  (-> (ContextAttribs. 2 1)) ;; GL2.1
         current-time-millis (System/currentTimeMillis)
-        tex-filenames       (fill-tex-filenames tex-filenames)]
+        tex-filenames       (fill-tex-filenames tex-filenames)
+        tex-types           (map get-texture-type tex-filenames)]
     (swap! globals
            assoc
            :active          :yes
@@ -120,18 +135,21 @@
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename
-           :shader-str      (if (nil? shader-filename)
-                              shader-str
-                              (slurp-fs (:shader-filename @globals)))
            :tex-filenames   tex-filenames
+           :tex-types       tex-types
            :user-fn         user-fn)
-    (Display/setDisplayMode display-mode)
-    (when true-fullscreen?
-      (Display/setFullscreen true))
-    (Display/setTitle title)
-    (Display/setVSyncEnabled true)
-    (Display/setLocation 0 0)
-    (Display/create pixel-format context-attributes)))
+    ;; slurp-fs requires :tex-types, so we need a 2 pass setup
+    (let [shader-str (if (nil? shader-filename)
+                       shader-str
+                       (slurp-fs (:shader-filename @globals)))]
+      (swap! globals assoc :shader-str shader-str)
+      (Display/setDisplayMode display-mode)
+      (when true-fullscreen?
+        (Display/setFullscreen true))
+      (Display/setTitle title)
+      (Display/setVSyncEnabled true)
+      (Display/setLocation 0 0)
+      (Display/create pixel-format context-attributes))))
 
 (defn- init-buffers
   []
@@ -229,13 +247,6 @@
       (aset data i2 (aget data i3))
       (aset data i3 tmp)))
   data)
-
-(defn- cubemap-filename?
-  "if a filename contains a '*' char, it is a cubemap"
-  [filename]
-  (if (string? filename)
-    (not (nil? (re-find #"\*" filename)))
-    false))
 
 (defn- cubemap-filename
   [filename i]
@@ -352,20 +363,10 @@
            (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)
            tex-id)))))
 
-(defn- get-texture-type
-  [tex-filename]
-  (cond
-   (cubemap-filename? tex-filename) :cubemap
-   (= :previous-frame tex-filename) :previous-frame
-   :default :twod))
-
 (defn- init-textures
   []
-  (let [tex-ids (map load-texture (:tex-filenames @globals))
-        tex-types (map get-texture-type (:tex-filenames @globals))]
-    (swap! globals assoc
-           :tex-ids   tex-ids
-           :tex-types tex-types)))
+  (let [tex-ids (map load-texture (:tex-filenames @globals))]
+    (swap! globals assoc :tex-ids tex-ids)))
 
 (defn- init-gl
   []
