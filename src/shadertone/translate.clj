@@ -7,16 +7,19 @@
 ;; TODO:
 ;;   x fn calls
 ;;   o for(;;) {}
+;;     o dotimes
 ;;   o while() {}
 ;;   o if() {}
 ;;   o if() {} else {}
 ;;   o switch () { case integer: ... break; ... default: ... }
-;;   o break; continue;
+;;   x break;
+;;   x continue;
 ;;   x void main() {}
 
 ;; ======================================================================
 ;; translation functions for a dialect of clojure-like s-expressions
 (declare shader-walk)
+
 (defn- shader-assign-str [z]
   (let [[type name value] z
         ;;_ (println "shader-assign-str-0:" type name value)
@@ -26,6 +29,7 @@
                         (shader-walk (list value)))]
     ;;(println "shader-assign-str-1:" asn-str)
     asn-str))
+
 (defn- shader-walk-let [x]
   ;;(println "shader-walk-let-0:" x)
   (let [var-str  (apply str (map shader-assign-str (partition 3 (nth x 1))))
@@ -36,6 +40,7 @@
                      (format "return(%s);\n" v)))]
     ;;(println "shader-walk-let-1:" var-str stmt-str ret-str)
     (str var-str stmt-str ret-str)))
+
 (defn- shader-walk-defn-args [x]
   ;;(println "shader-walk-defn-args-0" x (empty? x))
   (if (empty? x)
@@ -45,12 +50,13 @@
 (defn- shader-walk-slfn [x]
   ;;(println "shader-walk-slfn-0:" x)
   (let [fn-str (format "%s %s(%s) {\n%s}\n"
-                      (nth x 1)
-                      (nth x 2)
-                      (shader-walk-defn-args (nth x 3))
-                      (shader-walk (list (nth x 4))))]
+                       (nth x 1)
+                       (nth x 2)
+                       (shader-walk-defn-args (nth x 3))
+                       (shader-walk (list (nth x 4))))]
    ;;(print "shader-walk-slfn-1:" fn-str)
    fn-str))
+
 (defn- shader-walk-fn [x]
   ;;(println "shader-walk-fn-0:" x)
   (let [pre-fn (if (= (first (str (first x))) \.) "" (str (first x)))
@@ -62,6 +68,7 @@
                        post-fn)]
     ;;(println "shader-walk-fn-1:" fn-str)
     fn-str))
+
 (defn- shader-walk-infix [x]
   ;;(println "shader-walk-infix-0:" x)
   (let [fn-str (format "(%s)"
@@ -70,31 +77,54 @@
                                                   (rest x)))))]
     ;;(println "shader-walk-infix-1:" fn-str)
     fn-str))
+
 (defn- infix-operator? [x]
   (not (nil? (get #{ "+" "-" "*" "/"} x))))
-(defn- shader-uniform [x]
+
+(defn- shader-statement [x]
   (format "%s;\n" (apply str (interpose \  x))))
+
+(defn- shader-walk-times [x]
+  nil) ;; FIXME
+
+(defn- shader-walk-while [x]
+  nil) ;; FIXME
+
+(defn- shader-walk-if [x]
+  nil) ;; FIXME
+
+(defn- shader-walk-switch [x]
+  nil) ;; FIXME
+
 (defn- inner-walk
   [x]
-  (do
-    ;;(println "in:  " x)
-    (cond
-     (list? x)     (cond
-                    (= "slfn" (str (first x))) (shader-walk-slfn x)
-                    (= "slet" (str (first x))) (shader-walk-let x)
-                    (= "uniform" (str (first x))) (shader-uniform x)
-                    (infix-operator? (str (first x))) (shader-walk-infix x)
-                    :else (shader-walk-fn x))
-     (symbol? x)   (identity x)
-     (float? x)    (identity x)
-     (integer? x)  (identity x)
-     :else         (shader-walk x))))
+  ;;(println "in:  " x)
+  (cond
+   (list? x)    (let [sfx (str (first x))]
+                  (cond
+                   (= "slfn" sfx)        (shader-walk-slfn x)
+                   (= "slet" sfx)        (shader-walk-let x)
+                   (= "sltimes" sfx)     (shader-walk-times x)
+                   (= "while" sfx)       (shader-walk-while x)
+                   (= "if" sfx)          (shader-walk-if x)
+                   (= "switch" sfx)      (shader-walk-switch x)
+                   (= "break" sfx)       (shader-statement x)
+                   (= "continue" sfx)    (shader-statement x)
+                   (= "uniform" sfx)     (shader-statement x)
+                   (infix-operator? sfx) (shader-walk-infix x)
+                   :else                 (shader-walk-fn x)))
+   (symbol? x)  (identity x)
+   (float? x)   (identity x)
+   (integer? x) (identity x)
+   :else        (shader-walk x)))
+
 (defn- outer-walk [x]
   (do
     ;;(println "out: " x)
     (cond
      (list? x)     (apply str x)
      :else         (identity x))))
+
 (defn- shader-walk [form]
   (walk/walk inner-walk outer-walk form))
 
