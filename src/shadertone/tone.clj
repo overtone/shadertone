@@ -185,48 +185,44 @@
 (defn start
   "Start a new shader display.  Pass in optional user-data and user-fn
   for custom control"
-  [shader-filename
-   &{:keys [width height title textures user-data user-fn shader-str]
+  [shader-filename-or-str-atom
+   &{:keys [width height title textures user-data user-fn]
      :or {width      600
           height     600
           title      "shadertone"
           textures   []
           user-data  {}
-          user-fn    tone-default-fn
-          shader-str nil}}]
+          user-fn    tone-default-fn}}]
   (let [textures (fix-texture-list textures)
         user-data (merge-with #(or %1 %2)
                               user-data {"iOvertoneVolume"
                                          (atom {:synth voltap-synth
                                                 :tap   "system-vol"})})]
     (reset! tone-user-data user-data)
-    (s/start shader-filename
+    (s/start shader-filename-or-str-atom
              :width      width
              :height     height
              :title      title
              :textures   textures
-             :user-fn    user-fn
-             :shader-str shader-str)))
+             :user-fn    user-fn)))
 
 (defn start-fullscreen
   "Start a new fullscreen shader display.  Pass in optional user-data and user-fn
   for custom control"
-  [shader-filename
-   &{:keys [textures user-data user-fn shader-str]
+  [shader-filename-or-str-atom
+   &{:keys [textures user-data user-fn]
      :or {textures   []
           user-data  {}
-          user-fn    tone-default-fn
-          shader-str nil}}]
+          user-fn    tone-default-fn}}]
   (let [textures (fix-texture-list textures)
         user-data (merge-with #(or %1 %2)
                               user-data {"iOvertoneVolume"
                                          (atom {:synth voltap-synth
                                                 :tap   "system-vol"})})]
     (reset! tone-user-data user-data)
-    (s/start-fullscreen shader-filename
+    (s/start-fullscreen shader-filename-or-str-atom
                         :textures   textures
-                        :user-fn    user-fn
-                        :shader-str shader-str)))
+                        :user-fn    user-fn)))
 
 (defn stop
   []

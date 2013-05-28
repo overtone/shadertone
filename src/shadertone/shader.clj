@@ -34,7 +34,8 @@
                         :vbo-id              0
                         :vertices-count      0
                         ;; shader program
-                        :shader-filename     ""
+                        :shader-filename     nil
+                        :shader-str-atom     (atom nil)
                         :shader-str          ""
                         :vs-id               0
                         :fs-id               0
@@ -59,6 +60,7 @@
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
 (defonce reload-shader (ref false))
+(defonce reload-shader-str (ref ""))
 ;; Atom for the directory watcher future
 (defonce watcher-future (atom (future (fn [] nil))))
 ;; Flag to help avoid reloading shader right after loading it for the
@@ -118,7 +120,7 @@
    attempted if the display-mode is compatible. See display-modes for a
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
-  [display-mode title shader-filename shader-str tex-filenames true-fullscreen? user-fn display-sync-hz]
+  [display-mode title shader-filename shader-str-atom tex-filenames true-fullscreen? user-fn display-sync-hz]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -136,12 +138,13 @@
            :start-time      current-time-millis
            :last-time       current-time-millis
            :shader-filename shader-filename
+           :shader-str-atom shader-str-atom
            :tex-filenames   tex-filenames
            :tex-types       tex-types
            :user-fn         user-fn)
     ;; slurp-fs requires :tex-types, so we need a 2 pass setup
     (let [shader-str (if (nil? shader-filename)
-                       shader-str
+                       @shader-str-atom
                        (slurp-fs (:shader-filename @globals)))]
       (swap! globals assoc :shader-str shader-str)
       (Display/setDisplayMode display-mode)
@@ -384,7 +387,9 @@
 (defn- try-reload-shader
   []
   (let [{:keys [vs-id fs-id pgm-id shader-filename user-fn]} @globals
-        fs-shader      (slurp-fs shader-filename)
+        fs-shader      (if (nil? shader-filename)
+                         @reload-shader-str
+                         (slurp-fs shader-filename))
         new-fs-id      (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         new-pgm-id     (GL20/glCreateProgram)
         _              (GL20/glAttachShader new-pgm-id vs-id)
@@ -569,8 +574,8 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [mode shader-filename shader-str tex-filenames title true-fullscreen? user-fn display-sync-hz]
-  (init-window mode title shader-filename shader-str tex-filenames true-fullscreen? user-fn display-sync-hz)
+  [mode shader-filename shader-str-atom tex-filenames title true-fullscreen? user-fn display-sync-hz]
+  (init-window mode title shader-filename shader-str-atom tex-filenames true-fullscreen? user-fn display-sync-hz)
   (init-gl)
   (while (and (= :yes (:active @globals))
               (not (Display/isCloseRequested)))
@@ -618,6 +623,16 @@
   (and (good-tex-count textures)
        (files-exist (flatten [shader-filename textures]))
        (not (and (nil? shader-filename) (nil? shader-str)))))
+
+;; watch the shader-str-atom to reload on a change
+(defn- watch-shader-str-atom
+  [key identity old new]
+  (when (not= old new)
+    ;; if already reloading, wait for that to finish
+    (while @reload-shader
+      (Thread/sleep 100))
+    (dosync (ref-set reload-shader-str new))
+    (dosync (ref-set reload-shader true))))
 
 ;; watch the shader directory & reload the current shader if it changes.
 (defn- if-match-reload-shader
@@ -702,60 +717,68 @@
     (swap! globals assoc :active :stopping)
     (while (not (inactive?))
       (Thread/sleep 100)))
+  (remove-watch (:shader-str-atom @globals) :shader-str-watch)
   (stop-watcher @watcher-future))
 
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
-  [mode shader-filename shader-str textures title
+  [mode shader-filename-or-str-atom textures title
    true-fullscreen? user-fn display-sync-hz]
-  (when (sane-user-inputs mode shader-filename shader-str textures title true-fullscreen? user-fn)
-    ;; stop the current shader
-    (stop)
-    ;; start the watcher
-    (when-not (nil? shader-filename)
-      (swap! watcher-future
-             (fn [x] (start-watcher (.getParent (File. shader-filename))))))
-    ;; start the requested shader
-    (.start (Thread.
-             (fn [] (run-thread mode
-                               shader-filename
-                               shader-str
-                               textures
-                               title
-                               true-fullscreen?
-                               user-fn
-                               display-sync-hz))))))
+  (let [is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
+        shader-filename (if is-filename
+                          shader-filename-or-str-atom)
+        shader-str-atom (if (not is-filename)
+                          shader-filename-or-str-atom
+                          (atom nil))
+        shader-str      (if (not is-filename)
+                          @shader-str-atom)]
+    (when (sane-user-inputs mode shader-filename shader-str textures title true-fullscreen? user-fn)
+      ;; stop the current shader
+      (stop)
+      ;; start the watchers
+      (if is-filename
+        (when-not (nil? shader-filename)
+          (swap! watcher-future
+                 (fn [x] (start-watcher (.getParent (File. shader-filename))))))
+        (add-watch shader-str-atom :shader-str-watch watch-shader-str-atom))
+      ;; start the requested shader
+      (.start (Thread.
+               (fn [] (run-thread mode
+                                 shader-filename
+                                 shader-str-atom
+                                 textures
+                                 title
+                                 true-fullscreen?
+                                 user-fn
+                                 display-sync-hz)))))))
 
 (defn start
   "Start a new shader display. Forces the display window to be
    decorated (i.e. have a title bar)."
-  [shader-filename
+  [shader-filename-or-str-atom
    &{:keys [width height title display-sync-hz
-            textures user-fn
-            shader-str]
+            textures user-fn]
      :or {width           600
           height          600
           title           "shadertone"
           display-sync-hz 60
           textures        []
-          user-fn         nil
-          shader-str      nil}}]
+          user-fn         nil}}]
   (let [mode (DisplayMode. width height)]
     (decorate-display!)
-    (start-shader-display mode shader-filename shader-str textures title false user-fn display-sync-hz)))
+    (start-shader-display mode shader-filename-or-str-atom textures title false user-fn display-sync-hz)))
 
 (defn start-fullscreen
   "Start a new shader display in pseudo fullscreen mode. This creates a
    new borderless window which is the size of the current
    resolution. There are therefore no OS controls for closing the shader
    window. Use (stop) to close things manually. "
-  [shader-filename
-   &{:keys [display-sync-hz textures user-fn shader-str]
+  [shader-filename-or-str-atom
+   &{:keys [display-sync-hz textures user-fn]
      :or {display-sync-hz 60
           textures        [nil]
-          user-fn         nil
-          shader-str      nil}}]
+          user-fn         nil}}]
      (let [mode (first (display-modes))]
        (undecorate-display!)
-       (start-shader-display mode shader-filename shader-str textures "" false user-fn display-sync-hz)))
+       (start-shader-display mode shader-filename-or-str-atom textures "" false user-fn display-sync-hz)))

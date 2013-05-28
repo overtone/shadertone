@@ -19,11 +19,11 @@
 
 (deftest simple-str-test
   (testing "Simple acceptance test"
-    (let [_ (s/start nil :shader-str "
+    (let [_ (s/start (atom "
 uniform float iGlobalTime;
 void main(void) {
   gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iGlobalTime));
-}")
+}"))
           good-start (ask-user-tf "Did a pulsing orange window appear?")
           _ (s/stop)]
       (is good-start))))
@@ -37,11 +37,11 @@ void main(void) {
 
 (deftest simple-fullscreen-str-test
   (testing "Simple acceptance test"
-    (let [_ (s/start-fullscreen nil :shader-str "
+    (let [_ (s/start-fullscreen (atom "
 uniform float iGlobalTime;
 void main(void) {
   gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iGlobalTime));
-}")
+}"))
           good-start (ask-user-tf "Did a pulsing orange fullscreen window appear?")
           _ (s/stop)]
       (is good-start))))

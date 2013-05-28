@@ -30,11 +30,11 @@
 (deftest simple-str-test
   (testing "Simple acceptance test"
     (let [s (simple-synth)
-          _ (t/start nil :shader-str "
+          _ (t/start (atom "
 uniform float iGlobalTime;
 void main(void) {
   gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iGlobalTime));
-}")
+}"))
           good-start (ask-user-tf "Do you hear a siren-ish sound AND did a pulsing orange window appear?")
           _ (ctl s :gate 0)
           _ (t/stop)]
@@ -52,11 +52,11 @@ void main(void) {
 (deftest simple-fullscreen-str-test
   (testing "Simple acceptance test"
     (let [s (simple-synth)
-          _ (t/start-fullscreen nil :shader-str "
+          _ (t/start-fullscreen (atom "
 uniform float iGlobalTime;
 void main(void) {
   gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iGlobalTime));
-}")
+}"))
           good-start (ask-user-tf "Do you hear a siren-ish sound AND did a fullscreen pulsing orange window appear?")
           _ (ctl s :gate 0)
           _ (t/stop)]
