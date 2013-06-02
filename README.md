@@ -43,9 +43,12 @@ I've created a few screencast demos that you can watch:
 * [A quick teaser](https://www.youtube.com/watch?v=kyL3xc7MzR0) from the [disco example](https://github.com/overtone/shadertone/blob/master/examples/02demo_disco.clj)
 * [Video preview](https://www.youtube.com/watch?v=UMg8Td5Gqhk) showing the very early stages of shadertone.
 
+[Meta-eX](http://meta-ex.com/) has used Shadertone in performance.  Here are a vew videos from their May, 2013 Kiev #hotcode conference performance that show how Shadertone can be used:
+[after party 1](http://vimeo.com/67487486), [main conference](http://vimeo.com/67487485), [after party 1](http://www.youtube.com/watch?v=CjFCSTQbJx0),  [after party 2](http://www.youtube.com/watch?v=CjFCSTQbJx0).
+
 If you're interested, here's [the original announcement](https://groups.google.com/forum/?fromgroups=#!topic/overtone/7bQSJUUviBw) on the Overtone Google Group.
 
-I hope this allows you to create some happiness.  Enjoy!
+I hope this library allows you to create some happiness.  Enjoy!
 
 ## Usage
 
