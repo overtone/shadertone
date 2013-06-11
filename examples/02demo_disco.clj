@@ -47,7 +47,7 @@
        (lm/where :time (lm/bpm (* 2 124)))
        (lm/where :duration (lm/bpm (* 2 124)))))
 
-(ll/jam beats0)
+(ll/jam (var beats0))
 
 (def beats0     ;; 1   2   3   4   5   6   7   8
   (->> (lm/phrase [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]

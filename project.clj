@@ -29,4 +29,4 @@
                  [watchtower "0.1.1"]]
   :main ^{:skip-aot true} shadertone.core
   ;; add leipzig for use in examples
-  :profiles {:dev {:dependencies [[leipzig "0.4.0"]]}})
+  :profiles {:dev {:dependencies [[leipzig "0.5.0"]]}})
