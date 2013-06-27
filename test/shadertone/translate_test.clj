@@ -83,3 +83,56 @@ gl_FragColor = vec4(freqc,wavec,0.25,1.0);
 "
           ]
       (is (= test-str gold-str)))))
+
+(deftest forloop-test
+  (testing "forloop shader."
+    (let [_ (defshader test-shader
+              '((slfn void main []
+                      (slet [vec3 c (vec3 0.0)
+                             nil nil (forloop [ (var int i 0)
+                                                (<= i 10)
+                                                (var nil i (+ i 1)) ]
+                                              (var nil c (+ c (vec3 0.1))))
+                             nil gl_FragColor (vec4 c 1.0)]
+                            nil))))
+          test-str (str test-shader)
+          gold-str ;; FIXME this is a bit ugly text...
+"void main(void) {
+vec3 c = vec3(0.0);
+for( int i = 0;
+ (i <= 10); i = (i + 1);
+ ) {
+c = (c + vec3(0.1));
+}
+gl_FragColor = vec4(c,1.0);
+}
+"
+          ]
+      (is (= test-str gold-str)))))
+
+(deftest whileloop-test
+  (testing "whileloop shader."
+    (let [_ (defshader test-shader
+              '((slfn void main []
+                      (slet [vec3 c (vec3 0.0)
+                             int i 0
+                             nil nil (while (<= i 10)
+                                       (slet [nil i (+ i 1)
+                                              nil c (+ c (vec3 0.1))]
+                                             nil))
+                             nil gl_FragColor (vec4 c 1.0)]
+                            nil))))
+          test-str (str test-shader)
+          gold-str ;; FIXME this is a bit ugly text...
+"void main(void) {
+vec3 c = vec3(0.0);
+int i = 0;
+while(i <= 10) {
+i = (i + 1);
+c = (c + vec3(0.1));
+}
+gl_FragColor = vec4(c,1.0);
+}
+"
+          ]
+      (is (= test-str gold-str)))))

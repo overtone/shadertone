@@ -6,9 +6,9 @@
 ;; WORK IN PROGRESS -- Barely working...
 ;; TODO:
 ;;   x fn calls
-;;   o for(;;) {}
-;;     o dotimes
-;;   o while() {}
+;;   x for(;;) {}
+;;     ? dotimes
+;;   x while() {}
 ;;   o if() {}
 ;;   o if() {} else {}
 ;;   o switch () { case integer: ... break; ... default: ... }
@@ -24,11 +24,19 @@
   (let [[type name value] z
         ;;_ (println "shader-assign-str-0:" type name value)
         type-str (if (nil? type) "" (format "%s " (str type)))
-        asn-str (format "%s%s = %s;\n"
-                        type-str name
-                        (shader-walk (list value)))]
+        asn-str (if (nil? name)
+                  (apply str (shader-walk (list value)))
+                  (format "%s%s = %s;\n"
+                          type-str name
+                          (shader-walk (list value))))]
     ;;(println "shader-assign-str-1:" asn-str)
     asn-str))
+
+(defn- shader-walk-assign [x]
+  ;;(println "shader-walk-assign-0:" x)
+  (let [assign-str (apply str (shader-assign-str (rest x)))]
+    ;;(println "shader-walk-assign-1:" assign-str)
+    assign-str))
 
 (defn- shader-walk-let [x]
   ;;(println "shader-walk-let-0:" x)
@@ -79,16 +87,31 @@
     fn-str))
 
 (defn- infix-operator? [x]
-  (not (nil? (get #{ "+" "-" "*" "/"} x))))
+  (not (nil? (get #{ "+" "-" "*" "/" "=" "<" ">" "<=" ">=" "==" "!=" ">>" "<<"} x))))
 
 (defn- shader-statement [x]
   (format "%s;\n" (apply str (interpose \  x))))
 
-(defn- shader-walk-times [x]
-  nil) ;; FIXME
+;; (forloop [ init-stmt test-stmt step-stmt ] body )
+(defn- shader-walk-forloop [x]
+  ;;(println "shader-walk-forloop-0:" x)
+  (let [[init-stmt test-stmt step-stmt] (nth x 1)
+        fl-str (format "for( %s %s; %s ) {\n%s}\n"
+                       (shader-walk (list init-stmt))
+                       (shader-walk (list test-stmt))
+                       (shader-walk (list step-stmt))
+                       (shader-walk (list (nth x 2))))]
+    ;;(print "shader-walk-forloop-1:" fl-str)
+    fl-str))
 
+;; (whileloop test-stmt body )
 (defn- shader-walk-while [x]
-  nil) ;; FIXME
+  ;;(println "shader-walk-while-0:" x)
+  (let [w-str (format "while%s {\n%s}\n"
+                      (shader-walk (list (nth x 1)))
+                      (shader-walk (list (nth x 2))))]
+    ;;(println "shader-walk-while-1:" w-str)
+    w-str))
 
 (defn- shader-walk-if [x]
   nil) ;; FIXME
@@ -104,7 +127,8 @@
                   (cond
                    (= "slfn" sfx)        (shader-walk-slfn x)
                    (= "slet" sfx)        (shader-walk-let x)
-                   (= "sltimes" sfx)     (shader-walk-times x)
+                   (= "var" sfx)         (shader-walk-assign x)
+                   (= "forloop" sfx)     (shader-walk-forloop x)
                    (= "while" sfx)       (shader-walk-while x)
                    (= "if" sfx)          (shader-walk-if x)
                    (= "switch" sfx)      (shader-walk-switch x)
@@ -185,4 +209,14 @@
                   nil))))
   (print wave)
 
+  (defshader forloop0
+    '((slfn void main []
+            (slet [vec3 c (vec3 0.0)
+                   nil nil (forloop [ (var int i 0)
+                                      (<= i 10)
+                                      (var nil i (+ i 1)) ]
+                                    (var nil c (+ c (vec3 0.1))))
+                   nil gl_FragColor (vec4 c 1.0)]
+                  nil))))
+  (print forloop0)
   )
