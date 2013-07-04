@@ -1,15 +1,14 @@
 // Spectrograph.glsl - display the FFT over time.
-float SEC_PER_SCREEN = 30.0;    // cursor crosses the screen every 30
-                                // seconds
-float AMP_SCALE      = 5.0;     // fft data should be in the 0-1
-                                // range, but everyone's sound level
-                                // is slightly different.  Scale the
-                                // fft results for display.
-float FREQ_SCALE     = 0.5;     // By default, 0-20,000Hz is
-                                // displayed, but often we care little
-                                // about the highest frequencies.
-                                // e.g. ccale max freq by 1/2 to display
-                                // 0-10,000.
+float SEC_PER_SCREEN = 30.0; // cursor crosses the screen every 30
+                             // seconds
+float AMP_SCALE      = 5.0;  // fft data should be in the 0-1 range,
+                             // but everyone's sound level is slightly
+                             // different.  Scale the fft results for
+                             // display.
+float FREQ_SCALE     = 0.5;  // By default, 0-20,000Hz is displayed,
+                             // but often we care little about the
+                             // highest frequencies.  e.g. ccale max
+                             // freq by 1/2 to display 0-10,000.
 
 // convert hue saturation & value to vec3(red, green, blue)
 vec3 hsv2rgb(float h, float s, float v) {
@@ -40,7 +39,9 @@ void main(void)
     float fft    = (AMP_SCALE *
                     max(0.0, texture2D(iChannel0,vec2(FREQ_SCALE*uv.y,0.25)).x));
 
-    // let's have some fun with that fft value...
+    // let's have some fun with that fft value...change scalar into a
+    // hue with red as the peak.  Also adjust the value so quiet
+    // frequencies are black.
     vec3 fft3    = hsv2rgb(1.0-fft,0.5,fft);
 
     // But, we don't want the full screen to show the current FFT.  We
@@ -59,7 +60,7 @@ void main(void)
     // At last, we can derive our current pixel's color.
     // the ternary logic here just selects:
     // if this pixel's x value is the cursor's x value
-    //   the color is a greyscale of the current fft value
+    //   the color is the current fft value
     // else if this pixel is one to the right of the cursor
     //   draw a yellow pixel (makes a vertical line)
     // else
