@@ -1,11 +1,11 @@
 // Spectrograph.glsl - display the FFT over time.
 float SEC_PER_SCREEN = 30.0; // cursor crosses the screen every 30
                              // seconds
-float AMP_SCALE      = (1.0/4.0);  // fft data should be in the 0-1 range,
+float AMP_SCALE      = (1.0/2.0);  // fft data should be in the 0-1 range,
                              // but everyone's sound level is slightly
                              // different.  Scale the fft results for
                              // display.
-float FREQ_SCALE     = (512.0/4096.0);  // By default, 0-20,000Hz is displayed,
+float FREQ_SCALE     = (4096.0/4096.0);  // By default, 0-20,000Hz is displayed,
                              // but often we care little about the
                              // highest frequencies.  e.g. ccale max
                              // freq by 1/2 to display 0-10,000.
