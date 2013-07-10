@@ -35,7 +35,9 @@ vec2 obj_floor(in vec3 p,
 {
     // FIXME why doesn't length work?
     //return vec2(length(p*select-center),id);
-    return vec2((p*select-center).y,id);
+    float d = dot(p,select)-dot(center,select);
+    //d += 1.0*sin(length(vec2(p.x,p.z)));//length(vec2(p.z,p.z)));
+    return vec2(d,id);
 }
 
 vec2 distance_to_obj(in vec3 p)
@@ -45,7 +47,7 @@ vec2 distance_to_obj(in vec3 p)
             obj_floor(
                 p,
                 vec3(0,1,0),  // select
-                vec3(0,-3,0),  // center
+                vec3(0,-10,0),  // center
                 0),           // obj id
             obj_sphere(
                 p,
@@ -58,6 +60,7 @@ vec2 distance_to_obj(in vec3 p)
 
 vec3 floor_color(in vec3 p)
 {
+    //return vec3(0.3,0,0);
     if (fract(p.x*0.2)>0.2) {
         if (fract(p.z*0.2)>0.2) {
             return vec3(0,0.1,0.2);
