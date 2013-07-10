@@ -1,11 +1,11 @@
 // Spectrograph.glsl - display the FFT over time.
 float SEC_PER_SCREEN = 30.0; // cursor crosses the screen every 30
                              // seconds
-float AMP_SCALE      = 5.0;  // fft data should be in the 0-1 range,
+float AMP_SCALE      = (1.0/4.0);  // fft data should be in the 0-1 range,
                              // but everyone's sound level is slightly
                              // different.  Scale the fft results for
                              // display.
-float FREQ_SCALE     = 0.5;  // By default, 0-20,000Hz is displayed,
+float FREQ_SCALE     = (512.0/4096.0);  // By default, 0-20,000Hz is displayed,
                              // but often we care little about the
                              // highest frequencies.  e.g. ccale max
                              // freq by 1/2 to display 0-10,000.
@@ -36,13 +36,17 @@ void main(void)
     // change the last line to
     //   gl_FragColor = vec4(vec3(fft),1.0);
     // and see the full window filled with the same sonogram data.
-    float fft    = (AMP_SCALE *
-                    max(0.0, texture2D(iChannel0,vec2(FREQ_SCALE*uv.y,0.25)).x));
+    float fi     = FREQ_SCALE*uv.y;
+    // add 2x super-sampling to help with narrow frequencies
+    float fid    = FREQ_SCALE/4096.0/2.0; // 1/2 texel
+    float fft    = (AMP_SCALE * 0.5 *
+                    (max(0.0, texture2D(iChannel0,vec2(fi,0.25)).x) +
+                     max(0.0, texture2D(iChannel0,vec2(fi+fid,0.25)).x)));
 
     // let's have some fun with that fft value...change scalar into a
     // hue with red as the peak.  Also adjust the value so quiet
     // frequencies are black.
-    vec3 fft3    = hsv2rgb(1.0-fft,0.5,fft);
+    vec3 fft3    = hsv2rgb(1.0-fft,0.5,4.0*fft);
 
     // But, we don't want the full screen to show the current FFT.  We
     // want to only update the data under the cursor.  So, we use the

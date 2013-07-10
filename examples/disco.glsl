@@ -15,8 +15,8 @@ void main(void)
 
     // 3 dancing magenta, cyan & yellow sine waves
     float v1 = 0.1 + 5.0*iOvertoneVolume;
-    float v2 = 0.1 + hz(800);
-    float v3 = 0.1 + hz(8000);
+    float v2 = 0.1 + 0.5*hz(800);
+    float v3 = 0.1 + 0.5*hz(8000);
     vec3 col = vec3(0.0, 0.0, 0.0);
     float v1x = uv.x + sin(5.0*iGlobalTime + 1.5*uv.y)*v1;
     float v2x = uv.x + 0.5 + sin(3.0*iGlobalTime + 0.8*uv.y)*v1;
@@ -26,8 +26,8 @@ void main(void)
     col += vec3(0.0,1.0,1.0) * abs(0.066/v3x) * v3;
 
     // with a lighted disco floor pattern
-    float uvy2 = 0.5*iGlobalTime-uv.y;
-    float a1 = max(0.0,3.0*hz(100)) *
+    float uvy2 = 0.25*iGlobalTime-uv.y;
+    float a1 = max(0.0,0.25*hz(200)) *
         max(0.0,min(1.0,sin(10.0*uv.x)*sin(10.0*uvy2)));
     col += vec3(1.0,1.0,1.0) * a1;
 

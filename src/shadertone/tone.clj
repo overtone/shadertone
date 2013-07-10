@@ -20,11 +20,13 @@
 
 (defonce voltap-synth
   (vol :target (foundation-monitor-group)))
+;; FIXME 0.9  (vol [:after (foundation-monitor-group)]))
 
 ;; ----------------------------------------------------------------------
 ;; Grab Waveform & FFT data and send it to the iChannel[0] texture.
 ;; data capture fns cribbed from overtone/gui/scope.clj
-(defonce WAVE-BUF-SIZE 512) ; stick to powers of 2 for fft and GL
+(defonce WAVE-BUF-SIZE 4096) ; stick to powers of 2 for fft and GL
+(defonce WAVE-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
 (defonce FFTWAVE-BUF-SIZE (* 2 WAVE-BUF-SIZE))
 (defonce init-wave-array (float-array (repeat WAVE-BUF-SIZE 0.0)))
 (defonce init-fft-array (float-array (repeat WAVE-BUF-SIZE 0.0)))
@@ -40,6 +42,7 @@
                                (.put init-wave-array)
                                (.flip)))
 (defonce wave-bus-synth (bus->buf :target (foundation-monitor-group) 0 wave-buf))
+;; FIXME 0.9 (defonce wave-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 wave-buf))
 
 (defn- ensure-internal-server!
   "Throws an exception if the server isn't internal - wave relies on
@@ -51,27 +54,46 @@
   (when (server/external-server?)
     (throw (Exception. (str "Sorry, it's only possible to use waves with an internal server. Your server connection info is as follows: " (server/connection-info))))))
 
-;; Original FFT code produced a logarithmic dB scale.
-;; But shadertoy seems to get data in a 0-1 range.
-;; Changed from log to linear below.
+;; Inspired by overtone/gui/scope.clj, but made changes for
+;; - linear rather than logarithmic dB output
+;; - by hand magnitude calculation rather than pv_magsmear
+;; - internal fft-buf 2x external buf since it contains
+;;   real/imag pairs.
+;;
+;; Buffer update speed:
+;;     N  sec/buf hz/buf  res @44100Hz
+;;     512 0.012   86.1  43.1
+;;    1024 0.023   43.1  21.5
+;;    2048 0.046   21.5  10.8
+;;    4096 0.093   10.8   5.4 <<< seems reasonable compromise
+;;    8192 0.186    5.4   2.7
+;;   16384 0.372    2.7   1.3
+;;   32768 0.743    1.3   0.7
+;;
+;; http://www.physik.uni-wuerzburg.de/~praktiku/Anleitung/Fremde/ANO14.pdf
 (defsynth bus-freqs->buf
-  [in-bus 0 scope-buf 1 fft-buf-size WAVE-BUF-SIZE rate 1 db-factor 0.02]
+  [in-bus 0 scope-buf 1 fft-buf-size WAVE-BUF-SIZE-2X rate 2]
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
+        ;; drop DC & nyquist samples
         n-samples (* 0.5 (- (buf-samples:ir fft-buf) 2))
         signal    (in in-bus 1)
-        freqs     (fft fft-buf signal 0.75 HANN)
-        smoothed  (pv-mag-smear fft-buf 1)
+        ;; found 0.5 window gave less periodic noise
+        freqs     (fft fft-buf signal 0.5 HANN)
+        ;; indexer = 2, 4, 6, ..., N-4, N-2
         indexer   (+ n-samples 2
                      (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase)
                         n-samples))
         indexer   (round indexer 2)
-        src       (buf-rd 1 fft-buf indexer 1 1)
-        freq-vals (/ (pow 10 (+ 1 (* db-factor (ampdb (* src 0.00285))))) 6.0)]
-    (record-buf freq-vals scope-buf)))
+        ;; convert real,imag pairs to magnitude
+        s0        (buf-rd 1 fft-buf indexer 1 1)
+        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1)
+        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))]
+    (record-buf lin-mag scope-buf)))
 
 (defonce fft-bus-synth
   (bus-freqs->buf :target (foundation-monitor-group) 0 fft-buf))
+;; FIXME 0.9  (bus-freqs->buf [:after (foundation-monitor-group)] 0 fft-buf))
 
 ;; user-fn for shader display of waveform and fft
 (defn tone-fftwave-fn

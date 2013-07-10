@@ -46,7 +46,7 @@
 ;; website.  Use the previously rendered frame as input to this frame.
 (t/start "examples/zoomwave.glsl" :textures [ :overtone-audio :previous-frame ])
 ;; see the sound waveform and FFT
-(t/start "examples/wave.glsl" :textures [ :overtone-audio ])
+(t/start "examples/wave.glsl" :width 1024 :textures [ :overtone-audio ])
 
 ;; these testcase sounds are mainly for the wave shader
 ;; (warning, a little loud)
