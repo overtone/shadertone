@@ -25,8 +25,9 @@
                  [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
                   :classifier    ~(lwjgl-classifier)
                   :native-prefix ""]
+                 ;;[overtone "0.9.0-SNAPSHOT"]
                  [overtone "0.8.1"]
                  [watchtower "0.1.1"]]
   :main ^{:skip-aot true} shadertone.core
   ;; add leipzig for use in examples
-  :profiles {:dev {:dependencies [[leipzig "0.5.0"]]}})
+  :profiles {:dev {:dependencies [[leipzig "0.6.0"]]}})
