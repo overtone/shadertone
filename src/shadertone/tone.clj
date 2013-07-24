@@ -87,7 +87,7 @@
         indexer   (round indexer 2)
         ;; convert real,imag pairs to magnitude
         s0        (buf-rd 1 fft-buf indexer 1 1)
-        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1)
+        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
         lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))]
     (record-buf lin-mag scope-buf)))
 
@@ -216,7 +216,7 @@
           user-data  {}
           user-fn    tone-default-fn}}]
   (let [textures (fix-texture-list textures)
-        user-data (merge-with #(or %1 %2)
+        user-data (merge-with #(or %1 %2) ; kibit keep
                               user-data {"iOvertoneVolume"
                                          (atom {:synth voltap-synth
                                                 :tap   "system-vol"})})]
@@ -237,7 +237,7 @@
           user-data  {}
           user-fn    tone-default-fn}}]
   (let [textures (fix-texture-list textures)
-        user-data (merge-with #(or %1 %2)
+        user-data (merge-with #(or %1 %2) ; kibit keep
                               user-data {"iOvertoneVolume"
                                          (atom {:synth voltap-synth
                                                 :tap   "system-vol"})})]

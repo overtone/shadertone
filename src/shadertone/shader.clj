@@ -266,9 +266,7 @@
         data (if swizzle-0123-1230
                (buffer-swizzle-0123-1230 data)
                data)
-        buffer (-> buffer
-                   ;;(.order (ByteOrder/nativeOrder)) ?
-                   (.put data 0 (alength data)))]
+        buffer (.put buffer data 0 (alength data))] ; (.order (ByteOrder/nativeOrder)) ?
     buffer))
 
 (defn- tex-image-bytes
@@ -289,7 +287,7 @@
         ;;                           (= image-type BufferedImage/TYPE_4BYTE_ABGR) "TYPE_4BYTE_ABGR"
         ;;                           (= image-type BufferedImage/TYPE_INT_ARGB)   "TYPE_INT_ARGB"
         ;;                           :else image-type))
-        _           (assert (> image-bytes 0))] ;; die on unhandled image
+        _           (assert (pos? image-bytes))] ;; die on unhandled image
     image-bytes))
 
 (defn- tex-internal-format
@@ -328,8 +326,7 @@
      (if (string? filename)
        ;; load from file
        (let [_                (println "Loading texture:" filename)
-             image            (-> (FileInputStream. filename)
-                                  (ImageIO/read))
+             image            (ImageIO/read (FileInputStream. filename))
              image-bytes      (tex-image-bytes image)
              internal-format  (tex-internal-format image)
              format           (tex-format image)
@@ -356,16 +353,15 @@
                             GL11/GL_UNSIGNED_BYTE
                             buffer)
          tex-id)
-       (if (= filename :previous-frame)
+       (when (= filename :previous-frame)
          ;; :previous-frame initial setup
-         (do
-           (println "setting up :previous-frame texture")
-           (GL11/glBindTexture target tex-id)
-           (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
-           (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
-           (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
-           (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)
-           tex-id)))))
+         (println "setting up :previous-frame texture")
+         (GL11/glBindTexture target tex-id)
+         (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
+         (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
+         (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
+         (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)
+         tex-id))))
 
 (defn- init-textures
   []
@@ -608,7 +604,7 @@
   Another tweak is to expand names for cubemap textures."
   [filenames]
   (let [full-filenames (flatten (map expand-filename filenames))]
-    (reduce #(and %1 %2)
+    (reduce #(and %1 %2) ; kibit keep
             (for [fn full-filenames]
               (if (or (nil? fn)
                       (and (keyword? fn) (= fn :previous-frame))
@@ -656,12 +652,12 @@
    (watcher/rate 100)
    (watcher/file-filter watcher/ignore-dotfiles)
    (watcher/file-filter (watcher/extensions :glsl))
-   (watcher/on-change #(if-match-reload-shader %))))
+   (watcher/on-change if-match-reload-shader)))
 
 (defn- stop-watcher
   "given a watcher-future f, put a stop to it"
   [f]
-  (when (not (or (future-done? f) (future-cancelled? f)))
+  (when-not (or (future-done? f) (future-cancelled? f))
     (if (not (future-cancel f))
       (println "ERROR: unable to stop-watcher!"))))
 
@@ -728,10 +724,10 @@
   (let [is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
         shader-filename (if is-filename
                           shader-filename-or-str-atom)
-        shader-str-atom (if (not is-filename)
+        shader-str-atom (if-not is-filename
                           shader-filename-or-str-atom
                           (atom nil))
-        shader-str      (if (not is-filename)
+        shader-str      (if-not is-filename
                           @shader-str-atom)]
     (when (sane-user-inputs mode shader-filename shader-str textures title true-fullscreen? user-fn)
       ;; stop the current shader

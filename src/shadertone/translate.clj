@@ -1,7 +1,8 @@
 (ns #^{:author "Roger Allen"
        :doc "Overtone library code."}
   shadertone.translate
-  (:require [clojure.walk :as walk]))
+  (:require [clojure.walk :as walk]
+            [clojure.string :as string]))
 
 ;; WORK IN PROGRESS -- Barely working...
 ;; TODO:
@@ -25,7 +26,7 @@
         ;;_ (println "shader-assign-str-0:" type name value)
         type-str (if (nil? type) "" (format "%s " (str type)))
         asn-str (if (nil? name)
-                  (apply str (shader-walk (list value)))
+                  (string/join (shader-walk (list value)))
                   (format "%s%s = %s;\n"
                           type-str name
                           (shader-walk (list value))))]
@@ -34,14 +35,14 @@
 
 (defn- shader-walk-assign [x]
   ;;(println "shader-walk-assign-0:" x)
-  (let [assign-str (apply str (shader-assign-str (rest x)))]
+  (let [assign-str (string/join (shader-assign-str (rest x)))]
     ;;(println "shader-walk-assign-1:" assign-str)
     assign-str))
 
 (defn- shader-walk-let [x]
   ;;(println "shader-walk-let-0:" x)
-  (let [var-str  (apply str (map shader-assign-str (partition 3 (nth x 1))))
-        stmt-str (apply str (map #(shader-walk (list %)) (butlast (drop 2 x))))
+  (let [var-str  (string/join (map shader-assign-str (partition 3 (nth x 1))))
+        stmt-str (string/join (map #(shader-walk (list %)) (butlast (drop 2 x))))
         ret-str  (let [v (shader-walk (list (last (drop 2 x))))]
                    (if (nil? (first v))
                      ""
@@ -53,8 +54,8 @@
   ;;(println "shader-walk-defn-args-0" x (empty? x))
   (if (empty? x)
     "void"
-    (apply str (interpose \, (map #(apply (partial format "%s %s") %)
-                                  (partition 2 x))))))
+    (string/join \, (map #(apply (partial format "%s %s") %) (partition 2 x)))))
+
 (defn- shader-walk-slfn [x]
   ;;(println "shader-walk-slfn-0:" x)
   (let [fn-str (format "%s %s(%s) {\n%s}\n"
@@ -71,8 +72,9 @@
         post-fn (if (= (first (str (first x))) \.) (str (first x)) "")
         fn-str (format "%s(%s)%s"
                        pre-fn
-                       (apply str (interpose \, (map #(shader-walk (list %))
-                                                     (rest x))))
+                       (string/join
+                        \,
+                        (map #(shader-walk (list %)) (rest x)))
                        post-fn)]
     ;;(println "shader-walk-fn-1:" fn-str)
     fn-str))
@@ -80,9 +82,9 @@
 (defn- shader-walk-infix [x]
   ;;(println "shader-walk-infix-0:" x)
   (let [fn-str (format "(%s)"
-                       (apply str (interpose (format " %s " (str (first x)))
-                                             (map #(shader-walk (list %))
-                                                  (rest x)))))]
+                       (string/join
+                        (format " %s " (str (first x)))
+                        (map #(shader-walk (list %)) (rest x))))]
     ;;(println "shader-walk-infix-1:" fn-str)
     fn-str))
 
@@ -90,7 +92,7 @@
   (not (nil? (get #{ "+" "-" "*" "/" "=" "<" ">" "<=" ">=" "==" "!=" ">>" "<<"} x))))
 
 (defn- shader-statement [x]
-  (format "%s;\n" (apply str (interpose \  x))))
+  (format "%s;\n" (string/join \space x)))
 
 ;; (forloop [ init-stmt test-stmt step-stmt ] body )
 (defn- shader-walk-forloop [x]
@@ -143,11 +145,10 @@
    :else        (shader-walk x)))
 
 (defn- outer-walk [x]
-  (do
-    ;;(println "out: " x)
-    (cond
-     (list? x)     (apply str x)
-     :else         (identity x))))
+  ;;(println "out: " x)
+  (cond
+   (list? x)     (string/join x)
+   :else         (identity x)))
 
 (defn- shader-walk [form]
   (walk/walk inner-walk outer-walk form))
@@ -214,7 +215,7 @@
             (slet [vec3 c (vec3 0.0)
                    nil nil (forloop [ (var int i 0)
                                       (<= i 10)
-                                      (var nil i (+ i 1)) ]
+                                      (var nil i (inc i)) ]
                                     (var nil c (+ c (vec3 0.1))))
                    nil gl_FragColor (vec4 c 1.0)]
                   nil))))
