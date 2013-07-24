@@ -20,9 +20,9 @@
   :license {:name "MIT License"
             :url "https://github.com/overtone/shadertone/blob/master/LICENSE"}
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.lwjgl.lwjgl/lwjgl "2.8.5"]
-                 [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
-                 [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
+                 [org.lwjgl.lwjgl/lwjgl "2.9.0"]
+                 [org.lwjgl.lwjgl/lwjgl_util "2.9.0"]
+                 [org.lwjgl.lwjgl/lwjgl-platform "2.9.0"
                   :classifier    ~(lwjgl-classifier)
                   :native-prefix ""]
                  ;;[overtone "0.9.0-SNAPSHOT"]
