@@ -4,18 +4,35 @@
   (:require [clojure.walk :as walk]
             [clojure.string :as string]))
 
-;; WORK IN PROGRESS -- Barely working...
+;; WORK IN PROGRESS
+;;  * define functions
+;;    (defn <return-type> <function-name> <function-args-vector> <body-stmt1> ... )
+;;  * function calls
+;;    (<name> <arg1> <arg2> ... )
+;;  * variable creation/assignment
+;;    (uniform <type> <name>)
+;;    (setq <type> <name> <statement>)
+;;    (setq <name> <statement>)
+;;  * for(;;) {}
+;;    (forloop [ <init-stmt> <test-stmt> <step-stmt> ] <body-stmt1> ... )
+;;  * while() {}
+;;    (while <test-stmt> <body-stmt1> ... )
+;;  * break;
+;;    (break)
+;;  * continue;
+;;    (continue)
+;;  * return value;
+;;    (return <statement>)
+;;  * if() {}
+;;    (if <test> <stmt>)
+;;    (if <test> (do <body-stmt1> ...))
+;;  * if() {} else {}
+;;    (if <test> <stmt> <else-stmt>)
+;;    (if <test> (do <body-stmt1> ...) (do <else-stmt1> ...))
+;;  o switch () { case integer: ... break; ... default: ... }
+;;    (switch <test> <case-int-1> <case-stmt-1> ...)
 ;; TODO:
-;;   x fn calls
-;;   x for(;;) {}
-;;     ? dotimes
-;;   x while() {}
-;;   o if() {}
-;;   o if() {} else {}
-;;   o switch () { case integer: ... break; ... default: ... }
-;;   x break;
-;;   x continue;
-;;   x void main() {}
+;;   o indent spacing
 
 ;; ======================================================================
 ;; translation functions for a dialect of clojure-like s-expressions
@@ -114,8 +131,27 @@
     ;;(println "shader-walk-while-1:" w-str)
     w-str))
 
+(defn- shader-walk-do [x]
+  ;;(println "shader-walk-do-0:" x)
+  (let [w-str (format "{\n%s}\n" (string/join (shader-walk (drop 1 x))))]
+    ;;(println "shader-walk-do-1:" w-str)
+    w-str))
+
 (defn- shader-walk-if [x]
-  nil) ;; FIXME
+  ;;(println "shader-walk-if-0:" x)
+  (case (count (rest x))
+    2  (let [w-str (format "if%s\n%s" ;; if() {}
+                           (shader-walk (list (nth x 1)))
+                           (shader-walk (list (nth x 2))))]
+         ;;(println "shader-walk-if-1a:" w-str)
+         w-str)
+    3  (let [w-str (format "if%s\n%selse\n%s" ;; if() {} else {}
+                           (shader-walk (list (nth x 1)))
+                           (shader-walk (list (nth x 2)))
+                           (shader-walk (list (nth x 3))))]
+         ;;(println "shader-walk-if-1b:" w-str)
+         w-str)
+    :else (assert false "incorrect number of args for if statement")))
 
 (defn- shader-walk-switch [x]
   nil) ;; FIXME
@@ -134,6 +170,7 @@
                    (= "forloop" sfx)     (shader-walk-forloop x)
                    (= "while" sfx)       (shader-walk-while x)
                    (= "if" sfx)          (shader-walk-if x)
+                   (= "do" sfx)          (shader-walk-do x)
                    (= "switch" sfx)      (shader-walk-switch x)
                    (= "break" sfx)       (shader-stmt x)
                    (= "continue" sfx)    (shader-stmt x)
@@ -216,4 +253,24 @@
                  (setq c (+ c (vec3 0.1))))
         (setq gl_FragColor (vec4 c 1.0)))))
   (print forloop0)
+
+   (defshader iftest0
+    '((defn void main []
+        (if (< i 0) (setq i 0))
+        (if (< j 10)
+          (do
+            (setq i 5)
+            (setq j 10)))
+        (if (< k 10)
+          (setq i 5)
+          (setq j 10))
+        (if (< k 10)
+          (do
+            (setq i 1)
+            (setq j 2))
+          (do
+            (setq i 3)
+            (setq j 4))))))
+   (print iftest0)
+
   )
