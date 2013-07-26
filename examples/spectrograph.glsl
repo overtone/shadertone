@@ -46,7 +46,7 @@ void main(void)
     // let's have some fun with that fft value...change scalar into a
     // hue with red as the peak.  Also adjust the value so quiet
     // frequencies are black.
-    vec3 fft3    = hsv2rgb(1.0-fft,0.5,4.0*fft);
+    vec3 fft3    = hsv2rgb(1.0-fft,0.5,fft);
 
     // But, we don't want the full screen to show the current FFT.  We
     // want to only update the data under the cursor.  So, we use the
