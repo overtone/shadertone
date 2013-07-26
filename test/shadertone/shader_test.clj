@@ -12,8 +12,8 @@
 
 (deftest simple-file-test
   (testing "Simple acceptance test"
-    (let [_ (s/start "test/shadertone/simple.glsl")
-          good-start (ask-user-tf "Did a pulsing green window appear?")
+    (let [_ (s/start "test/shadertone/simple.glsl" :textures ["textures/wall.png"])
+          good-start (ask-user-tf "Did a pulsing green textured window appear?")
           _ (s/stop)]
       (is good-start))))
 
@@ -30,8 +30,8 @@ void main(void) {
 
 (deftest simple-fullscreen-file-test
   (testing "Simple acceptance test"
-    (let [_ (s/start-fullscreen "test/shadertone/simple.glsl")
-          good-start (ask-user-tf "Did a pulsing green fullscreen window appear?")
+    (let [_ (s/start-fullscreen "test/shadertone/simple.glsl" :textures ["textures/wall.png"])
+          good-start (ask-user-tf "Did a pulsing green textured fullscreen window appear?")
           _ (s/stop)]
       (is good-start))))
 

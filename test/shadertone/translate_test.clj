@@ -6,9 +6,8 @@
 (deftest simplest-test
   (testing "The simplest shader."
     (let [_ (defshader test-shader
-              '((slfn void main []
-                      (slet [nil gl_FragColor (vec4 1.0 0.5 0.5 1.0)]
-                            nil))))
+              '((defn void main []
+                  (setq gl_FragColor (vec4 1.0 0.5 0.5 1.0)))))
           test-str (str test-shader)
           gold-str
 "void main(void) {
@@ -22,10 +21,9 @@ gl_FragColor = vec4(1.0,0.5,0.5,1.0);
   (testing "A simple shader."
     (let [_ (defshader test-shader
               '((uniform vec3 iResolution)
-                (slfn void main []
-                      (slet [vec2 uv (/ gl_FragCoord.xy iResolution.xy)
-                             nil gl_FragColor (vec4 uv.x uv.y 0.0 1.0)]
-                            nil))))
+                (defn void main []
+                  (setq vec2 uv (/ gl_FragCoord.xy iResolution.xy))
+                  (setq gl_FragColor (vec4 uv.x uv.y 0.0 1.0)))))
           test-str (str test-shader)
           gold-str
 "uniform vec3 iResolution;
@@ -42,25 +40,23 @@ gl_FragColor = vec4(uv.x,uv.y,0.0,1.0);
     (let [_ (defshader test-shader
               '((uniform vec3 iResolution)
                 (uniform sampler2D iChannel0)
-                (slfn float smoothbump
-                      [float center
-                       float width
-                       float x]
-                      (slet [float w2 (/ width 2.0)
-                             float cp (+ center w2)
-                             float cm (- center w2)]
-                            (* (smoothstep cm center x)
-                               (- 1.0 (smoothstep center cp x)))))
-                (slfn void main
-                      []
-                      (slet [float uv     (/ gl_FragCoord.xy iResolution.xy)
-                             nil   uv.y   (- 1.0 uv.y)
-                             float freq   (.x (texture2D iChannel0 (vec2 uv.x 0.25)))
-                             float wave   (.x (texture2D iChannel0 (vec2 uv.x 0.75)))
-                             float freqc  (smoothstep 0.0 (/ 1.0 iResolution.y) (+ freq uv.y -0.5))
-                             float wavec  (smoothstep 0.0 (/ 4.0 iResolution.y) (+ wave uv.y -0.5))
-                             nil   gl_FragColor (vec4 freqc wavec 0.25 1.0)]
-                            nil))))
+                (defn float smoothbump
+                  [float center
+                   float width
+                   float x]
+                  (setq float w2 (/ width 2.0))
+                  (setq float cp (+ center w2))
+                  (setq float cm (- center w2))
+                  (return (* (smoothstep cm center x)
+                             (- 1.0 (smoothstep center cp x)))))
+                (defn void main []
+                  (setq float uv     (/ gl_FragCoord.xy iResolution.xy))
+                  (setq uv.y   (- 1.0 uv.y))
+                  (setq float freq   (.x (texture2D iChannel0 (vec2 uv.x 0.25))))
+                  (setq float wave   (.x (texture2D iChannel0 (vec2 uv.x 0.75))))
+                  (setq float freqc  (smoothstep 0.0 (/ 1.0 iResolution.y) (+ freq uv.y -0.5)))
+                  (setq float wavec  (smoothstep 0.0 (/ 4.0 iResolution.y) (+ wave uv.y -0.5)))
+                  (setq gl_FragColor (vec4 freqc wavec 0.25 1.0)))))
           test-str (str test-shader)
           gold-str
 "uniform vec3 iResolution;
@@ -87,14 +83,13 @@ gl_FragColor = vec4(freqc,wavec,0.25,1.0);
 (deftest forloop-test
   (testing "forloop shader."
     (let [_ (defshader test-shader
-              '((slfn void main []
-                      (slet [vec3 c (vec3 0.0)
-                             nil nil (forloop [ (var int i 0)
-                                                (<= i 10)
-                                                (var nil i (+ i 1)) ]
-                                              (var nil c (+ c (vec3 0.1))))
-                             nil gl_FragColor (vec4 c 1.0)]
-                            nil))))
+              '((defn void main []
+                  (setq vec3 c (vec3 0.0))
+                  (forloop [ (setq int i 0)
+                             (<= i 10)
+                             (setq i (+ i 1)) ]
+                           (setq c (+ c (vec3 0.1))))
+                  (setq gl_FragColor (vec4 c 1.0)))))
           test-str (str test-shader)
           gold-str ;; FIXME this is a bit ugly text...
 "void main(void) {
@@ -113,15 +108,13 @@ gl_FragColor = vec4(c,1.0);
 (deftest whileloop-test
   (testing "whileloop shader."
     (let [_ (defshader test-shader
-              '((slfn void main []
-                      (slet [vec3 c (vec3 0.0)
-                             int i 0
-                             nil nil (while (<= i 10)
-                                       (slet [nil i (+ i 1)
-                                              nil c (+ c (vec3 0.1))]
-                                             nil))
-                             nil gl_FragColor (vec4 c 1.0)]
-                            nil))))
+              '((defn void main []
+                  (setq vec3 c (vec3 0.0))
+                  (setq int i 0)
+                  (while (<= i 10)
+                    (setq i (+ i 1))
+                    (setq c (+ c (vec3 0.1))))
+                  (setq gl_FragColor (vec4 c 1.0)))))
           test-str (str test-shader)
           gold-str ;; FIXME this is a bit ugly text...
 "void main(void) {

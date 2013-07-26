@@ -1,5 +1,5 @@
 (ns #^{:author "Roger Allen"
-       :doc "Overtone library code."}
+       :doc "Shadertone lisp-to-glsl translation."}
   shadertone.translate
   (:require [clojure.walk :as walk]
             [clojure.string :as string]))
@@ -21,49 +21,48 @@
 ;; translation functions for a dialect of clojure-like s-expressions
 (declare shader-walk)
 
-(defn- shader-assign-str [z]
+(defn- shader-typed-assign-str [z]
   (let [[type name value] z
+        _ (assert (= 3 (count z)))
         ;;_ (println "shader-assign-str-0:" type name value)
-        type-str (if (nil? type) "" (format "%s " (str type)))
-        asn-str (if (nil? name)
-                  (string/join (shader-walk (list value)))
-                  (format "%s%s = %s;\n"
-                          type-str name
-                          (shader-walk (list value))))]
+        asn-str (format "%s %s = %s;\n"
+                          type name
+                          (shader-walk (list value)))]
+    ;;(println "shader-assign-str-1:" asn-str)
+    asn-str))
+
+(defn- shader-assign-str [z]
+  (let [[name value] z
+        _ (assert (= 2 (count z)))
+        ;;_ (println "shader-assign-str-0:" name value)
+        asn-str (format "%s = %s;\n"
+                        name
+                        (shader-walk (list value)))]
     ;;(println "shader-assign-str-1:" asn-str)
     asn-str))
 
 (defn- shader-walk-assign [x]
   ;;(println "shader-walk-assign-0:" x)
-  (let [assign-str (string/join (shader-assign-str (rest x)))]
-    ;;(println "shader-walk-assign-1:" assign-str)
-    assign-str))
-
-(defn- shader-walk-let [x]
-  ;;(println "shader-walk-let-0:" x)
-  (let [var-str  (string/join (map shader-assign-str (partition 3 (nth x 1))))
-        stmt-str (string/join (map #(shader-walk (list %)) (butlast (drop 2 x))))
-        ret-str  (let [v (shader-walk (list (last (drop 2 x))))]
-                   (if (nil? (first v))
-                     ""
-                     (format "return(%s);\n" v)))]
-    ;;(println "shader-walk-let-1:" var-str stmt-str ret-str)
-    (str var-str stmt-str ret-str)))
+  (case (count (rest x))
+    2 (shader-assign-str (rest x))
+    3 (shader-typed-assign-str (rest x))
+    :else (assert false "incorrect number of args for setq statement")))
 
 (defn- shader-walk-defn-args [x]
   ;;(println "shader-walk-defn-args-0" x (empty? x))
+  (assert (vector? x))
   (if (empty? x)
     "void"
     (string/join \, (map #(apply (partial format "%s %s") %) (partition 2 x)))))
 
-(defn- shader-walk-slfn [x]
-  ;;(println "shader-walk-slfn-0:" x)
+(defn- shader-walk-defn [x]
+  ;;(println "shader-walk-defn-0:" x)
   (let [fn-str (format "%s %s(%s) {\n%s}\n"
                        (nth x 1)
                        (nth x 2)
                        (shader-walk-defn-args (nth x 3))
-                       (shader-walk (list (nth x 4))))]
-   ;;(print "shader-walk-slfn-1:" fn-str)
+                       (string/join (shader-walk (drop 4 x))))]  ;; FIXME add indentation level?
+   ;;(print "shader-walk-defn-1:" fn-str)
    fn-str))
 
 (defn- shader-walk-fn [x]
@@ -91,7 +90,7 @@
 (defn- infix-operator? [x]
   (not (nil? (get #{ "+" "-" "*" "/" "=" "<" ">" "<=" ">=" "==" "!=" ">>" "<<"} x))))
 
-(defn- shader-statement [x]
+(defn- shader-stmt [x]
   (format "%s;\n" (string/join \space x)))
 
 ;; (forloop [ init-stmt test-stmt step-stmt ] body )
@@ -102,7 +101,7 @@
                        (shader-walk (list init-stmt))
                        (shader-walk (list test-stmt))
                        (shader-walk (list step-stmt))
-                       (shader-walk (list (nth x 2))))]
+                       (string/join (shader-walk (drop 2 x))))]
     ;;(print "shader-walk-forloop-1:" fl-str)
     fl-str))
 
@@ -111,7 +110,7 @@
   ;;(println "shader-walk-while-0:" x)
   (let [w-str (format "while%s {\n%s}\n"
                       (shader-walk (list (nth x 1)))
-                      (shader-walk (list (nth x 2))))]
+                      (string/join (shader-walk (drop 2 x))))]
     ;;(println "shader-walk-while-1:" w-str)
     w-str))
 
@@ -121,22 +120,25 @@
 (defn- shader-walk-switch [x]
   nil) ;; FIXME
 
+(defn- shader-walk-return [x]
+  (format "%s;\n" (shader-walk-fn x)))
+
 (defn- inner-walk
   [x]
   ;;(println "in:  " x)
   (cond
    (list? x)    (let [sfx (str (first x))]
                   (cond
-                   (= "slfn" sfx)        (shader-walk-slfn x)
-                   (= "slet" sfx)        (shader-walk-let x)
-                   (= "var" sfx)         (shader-walk-assign x)
+                   (= "defn" sfx)        (shader-walk-defn x)
+                   (= "setq" sfx)        (shader-walk-assign x)
                    (= "forloop" sfx)     (shader-walk-forloop x)
                    (= "while" sfx)       (shader-walk-while x)
                    (= "if" sfx)          (shader-walk-if x)
                    (= "switch" sfx)      (shader-walk-switch x)
-                   (= "break" sfx)       (shader-statement x)
-                   (= "continue" sfx)    (shader-statement x)
-                   (= "uniform" sfx)     (shader-statement x)
+                   (= "break" sfx)       (shader-stmt x)
+                   (= "continue" sfx)    (shader-stmt x)
+                   (= "uniform" sfx)     (shader-stmt x)
+                   (= "return" sfx)      (shader-walk-return x)
                    (infix-operator? sfx) (shader-walk-infix x)
                    :else                 (shader-walk-fn x)))
    (symbol? x)  (identity x)
@@ -171,53 +173,47 @@
 (comment
   ;; simplest possible shader
   (defshader simplest
-    '((slfn void main []
-            (slet [nil gl_FragCoord (vec4 1.0 0.5 0.5 1.0)]
-                  nil))))
+    '((defn void main [] (setq gl_FragColor (vec4 1.0 0.5 0.5 1.0)))))
   (print simplest)
 
   ;; simple test
   (defshader simple
     '((uniform vec3 iResolution)
-      (slfn void main []
-            (slet [vec2 uv (/ gl_FragCoord.xy iResolution.xy)
-                   nil gl_FragColor (vec4 uv.x uv.y 0.0 1.0)]
-             nil))))
+      (defn void main []
+            (setq vec2 uv (/ gl_FragCoord.xy iResolution.xy))
+            (setq gl_FragColor (vec4 uv.x uv.y 0.0 1.0)))))
   (print simple)
 
   ;; preliminary translation of wave.glsl
   (defshader wave
     '((uniform vec3 iResolution)
       (uniform sampler2D iChannel0)
-      (slfn float smoothbump
-            [float center
-             float width
-             float x]
-            (slet [float w2 (/ width 2.0)
-                   float cp (+ center w2)
-                   float cm (- center w2)]
-                  (* (smoothstep cm center x)
-                     (- 1.0 (smoothstep center cp x)))))
-      (slfn void main
-            []
-            (slet [float uv     (/ gl_FragCoord.xy iResolution.xy)
-                   nil   uv.y   (- 1.0 uv.y)
-                   float freq   (.x (texture2D iChannel0 (vec2 uv.x 0.25)))
-                   float wave   (.x (texture2D iChannel0 (vec2 uv.x 0.75)))
-                   float freqc  (smoothstep 0.0 (/ 1.0 iResolution.y) (+ freq uv.y -0.5))
-                   float wavec  (smoothstep 0.0 (/ 4.0 iResolution.y) (+ wave uv.y -0.5))
-                   nil   gl_FragColor (vec4 freqc wavec 0.25 1.0)]
-                  nil))))
+      (defn float smoothbump
+        [float center
+         float width
+         float x]
+        (setq float w2 (/ width 2.0))
+        (setq float cp (+ center w2))
+        (setq float cm (- center w2))
+        (return (* (smoothstep cm center x)
+                   (- 1.0 (smoothstep center cp x)))))
+      (defn void main []
+        (setq float uv     (/ gl_FragCoord.xy iResolution.xy))
+        (setq uv.y   (- 1.0 uv.y))
+        (setq float freq   (.x (texture2D iChannel0 (vec2 uv.x 0.25))))
+        (setq float wave   (.x (texture2D iChannel0 (vec2 uv.x 0.75))))
+        (setq float freqc  (smoothstep 0.0 (/ 1.0 iResolution.y) (+ freq uv.y -0.5)))
+        (setq float wavec  (smoothstep 0.0 (/ 4.0 iResolution.y) (+ wave uv.y -0.5)))
+        (setq gl_FragColor (vec4 freqc wavec 0.25 1.0)))))
   (print wave)
 
   (defshader forloop0
-    '((slfn void main []
-            (slet [vec3 c (vec3 0.0)
-                   nil nil (forloop [ (var int i 0)
-                                      (<= i 10)
-                                      (var nil i (inc i)) ]
-                                    (var nil c (+ c (vec3 0.1))))
-                   nil gl_FragColor (vec4 c 1.0)]
-                  nil))))
+    '((defn void main []
+        (setq vec3 c (vec3 0.0))
+        (forloop [ (setq int i 0)
+                   (<= i 10)
+                   (setq i (+ i 1)) ]
+                 (setq c (+ c (vec3 0.1))))
+        (setq gl_FragColor (vec4 c 1.0)))))
   (print forloop0)
   )

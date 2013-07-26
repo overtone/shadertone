@@ -21,8 +21,8 @@
 (deftest simple-file-test
   (testing "Simple acceptance test"
     (let [s (simple-synth)
-          _ (t/start "test/shadertone/simple.glsl")
-          good-start (ask-user-tf "Do you hear a siren-ish sound AND did a pulsing green window appear?")
+          _ (t/start "test/shadertone/simple.glsl" :textures ["textures/wall.png"])
+          good-start (ask-user-tf "Do you hear a siren-ish sound AND did a pulsing green textured window appear?")
           _ (ctl s :gate 0)
           _ (t/stop)]
       (is good-start))))
@@ -43,8 +43,8 @@ void main(void) {
 (deftest simple-fullscreen-file-test
   (testing "Simple acceptance test"
     (let [s (simple-synth)
-          _ (t/start-fullscreen "test/shadertone/simple.glsl")
-          good-start (ask-user-tf "Do you hear a siren-ish sound AND did a fullscreen pulsing green window appear?")
+          _ (t/start-fullscreen "test/shadertone/simple.glsl" :textures ["textures/wall.png"])
+          good-start (ask-user-tf "Do you hear a siren-ish sound AND did a fullscreen pulsing green textured window appear?")
           _ (ctl s :gate 0)
           _ (t/stop)]
       (is good-start))))
