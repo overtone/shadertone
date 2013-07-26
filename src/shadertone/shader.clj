@@ -76,6 +76,12 @@
            (if (< i (count tex-filenames))
              (nth tex-filenames i)))))
 
+(defn- uniform-sampler-type-str
+  [tex-types n]
+  (format "uniform sampler%s iChannel%s;\n"
+          (if (= :cubemap (nth tex-types 0)) "Cube" "2D")
+          n))
+
 (defn- slurp-fs
   "do whatever it takes to modify shadertoy fragment shader source to
   be useable"
@@ -87,14 +93,10 @@
                       "uniform float     iGlobalTime;\n"
                       "uniform float     iChannelTime[4];\n"
                       "uniform vec4      iMouse;\n"
-                      (format "uniform sampler%s iChannel0;\n"
-                              (if (= :cubemap (nth tex-types 0)) "Cube" "2D"))
-                      (format "uniform sampler%s iChannel1;\n"
-                              (if (= :cubemap (nth tex-types 1)) "Cube" "2D"))
-                      (format "uniform sampler%s iChannel2;\n"
-                              (if (= :cubemap (nth tex-types 2)) "Cube" "2D"))
-                      (format "uniform sampler%s iChannel3;\n"
-                              (if (= :cubemap (nth tex-types 3)) "Cube" "2D"))
+                      (uniform-sampler-type-str tex-types 0)
+                      (uniform-sampler-type-str tex-types 1)
+                      (uniform-sampler-type-str tex-types 2)
+                      (uniform-sampler-type-str tex-types 3)
                       "uniform vec4      iDate;\n"
                       "\n"
                       (slurp filename))]
