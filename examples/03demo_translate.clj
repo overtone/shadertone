@@ -6,11 +6,10 @@
 (trans/defshader simple
   '((uniform vec3  iResolution)
     (uniform float iGlobalTime)
-    (slfn void main []
-          (slet [vec2  uv           (/ gl_FragCoord.xy iResolution.xy)
-                 float b            (abs (sin iGlobalTime))
-                 nil   gl_FragColor (vec4 uv.x uv.y b 1.0)]
-                nil))))
+    (defn void main []
+      (setq vec2 uv (/ gl_FragCoord.xy iResolution.xy))
+      (setq float b (abs (sin iGlobalTime)))
+      (setq gl_FragColor (vec4 uv.x uv.y b 1.0)))))
 ;;(print simple)
 
 ;; wrap the shader in an atom to allow it to be watched & modified
@@ -20,7 +19,7 @@
 ;; swap it out for something simple
 (swap! simple-atom (fn [x] "
 void main(void) {
-gl_FragColor = vec4(1.0,0.5,0.25,1.0);
+  gl_FragColor = vec4(1.0,0.5,0.25,1.0);
 }
 "))
 
