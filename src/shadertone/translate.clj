@@ -4,7 +4,10 @@
   (:require [clojure.walk :as walk]
             [clojure.string :as string]))
 
-;; WORK IN PROGRESS
+;; This is only a single-pass "lisp" to GLSL translator.  Very basic.
+;; If useful, then perhaps we can work to improve.  Send feedback.
+;;
+;; Basic "docs".  See testcases, too.
 ;;  * define functions
 ;;    (defn <return-type> <function-name> <function-args-vector> <body-stmt1> ... )
 ;;  * function calls
@@ -29,10 +32,15 @@
 ;;  * if() {} else {}
 ;;    (if <test> <stmt> <else-stmt>)
 ;;    (if <test> (do <body-stmt1> ...) (do <else-stmt1> ...))
-;;  o switch () { case integer: ... break; ... default: ... }
+;;  * switch () { case integer: ... break; ... default: ... }
 ;;    (switch <test> <case-int-1> <case-stmt-1> ...)
+;;    cases can only be integer or :default keyword
 ;; TODO:
 ;;   o indent spacing
+;;   o tests
+;;   o assertions?
+;;   o defensive coding
+;;   o error reports
 
 ;; ======================================================================
 ;; translation functions for a dialect of clojure-like s-expressions
@@ -153,8 +161,32 @@
          w-str)
     :else (assert false "incorrect number of args for if statement")))
 
+(defn- shader-walk-case [x]
+  ;;(println "shader-walk-case-0:" x)
+  (let [[v s] x
+        _ (assert (= 2 (count x)))
+        c-str (if (number? v)
+                (format "case %d:" v)
+                (if (= v :default)
+                  "default:"
+                  (assert false (format "expected integer or default:, got: %s" v))))
+        w-str (format "%s\n%s"
+                      c-str
+                      (shader-walk (list s)))]
+    ;;(println "shader-walk-case-1:" w-str)
+    w-str))
+
 (defn- shader-walk-switch [x]
-  nil) ;; FIXME
+  ;;(println "shader-walk-switch-0:" x)
+  (let [v     (nth x 1)
+        v-str (if (list? v)
+                (shader-walk (list v))
+                (format "(%s)" (shader-walk (list v))))
+        w-str (format "switch%s {\n%s}\n"
+                      v-str
+                      (string/join (map shader-walk-case (partition 2 (drop 2 x)))))]
+    ;;(println "shader-walk-switch-1:" w-str)
+    w-str))
 
 (defn- shader-walk-return [x]
   (format "%s;\n" (shader-walk-fn x)))
@@ -198,6 +230,7 @@
   [& params]
   (shader-walk (first params)))
 
+;; ??? Maybe we should just call create-shader and get a string back?
 (defmacro defshader
   "macro to define the fragment shader. returns shader as a string."
   [name body]
@@ -254,7 +287,7 @@
         (setq gl_FragColor (vec4 c 1.0)))))
   (print forloop0)
 
-   (defshader iftest0
+  (defshader iftest0
     '((defn void main []
         (if (< i 0) (setq i 0))
         (if (< j 10)
@@ -272,5 +305,19 @@
             (setq i 3)
             (setq j 4))))))
    (print iftest0)
+
+  (defshader swtest0
+    '((defn void main []
+        (switch j
+         0 (do (setq i 0)
+               (break))
+         1 (do (setq i 1)
+               (break))
+         :default (break))
+        (switch (+ j k)
+         0 (do (setq l 0)
+               (break))
+         :default (break)))))
+  (print swtest0)
 
   )

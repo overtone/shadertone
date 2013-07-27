@@ -129,3 +129,50 @@ gl_FragColor = vec4(c,1.0);
 "
           ]
       (is (= test-str gold-str)))))
+
+(deftest if-test
+  (testing "if shader."
+    (let [_ (defshader test-shader
+              '((defn void main []
+                  (if (< i 0) (setq i 0))
+                  (if (< j 10)
+                    (do
+                      (setq i 5)
+                      (setq j 10)))
+                  (if (< k 10)
+                    (setq i 5)
+                    (setq j 10))
+                  (if (< k 10)
+                    (do
+                      (setq i 1)
+                      (setq j 2))
+                    (do
+                      (setq i 3)
+                      (setq j 4))))))
+          test-str (str test-shader)
+          gold-str ;; FIXME
+          "void main(void) {\nif(i < 0)\ni = 0;\nif(j < 10)\n{\ni = 5;\nj = 10;\n}\nif(k < 10)\ni = 5;\nelse\nj = 10;\nif(k < 10)\n{\ni = 1;\nj = 2;\n}\nelse\n{\ni = 3;\nj = 4;\n}\n}\n"
+          ]
+      (is (= test-str gold-str)))))
+
+(deftest switch-test
+  (testing "switch shader."
+    (let [_ (defshader test-shader
+              '((defn void main []
+                  (switch
+                   j
+                   0 (do (setq i 0)
+                         (break))
+                   1 (do (setq i 1)
+                         (break))
+                   :default (break))
+                  (switch
+                   (+ j k)
+                   0 (do (setq l 0)
+                         (break))
+                   :default (break)))))
+          test-str (str test-shader)
+          gold-str ;; FIXME
+          "void main(void) {\nswitch(j) {\ncase 0:\n{\ni = 0;\nbreak;\n}\ncase 1:\n{\ni = 1;\nbreak;\n}\ndefault:\nbreak;\n}\nswitch(j + k) {\ncase 0:\n{\nl = 0;\nbreak;\n}\ndefault:\nbreak;\n}\n}\n"
+          ]
+      (is (= test-str gold-str)))))
