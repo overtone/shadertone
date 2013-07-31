@@ -1,19 +1,3 @@
-;; NOTE!  This project requires leiningen 2.1.0 or later.
-(require 'leiningen.core.eval)
-;;(println (leiningen.core.eval/get-os)) ;; try lein deps to see this
-
-(def LWJGL-CLASSIFIER
-  "Per os native code classifier"
-  {:macosx  "natives-osx"
-   :linux   "natives-linux"
-   :windows "natives-windows"})
-
-(defn lwjgl-classifier
-  "Return the os-dependent lwjgl native-code classifier"
-  []
-  (let [os (leiningen.core.eval/get-os)]
-    (get LWJGL-CLASSIFIER os)))
-
 (defproject shadertone "0.2.0-SNAPSHOT"
   :description "A clojure library designed to mix musical synthesis via Overtone and dynamic visuals a la www.shadertoy.com"
   :url "http://github.com/overtone/shadertone"
@@ -22,9 +6,7 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.lwjgl.lwjgl/lwjgl "2.9.0"]
                  [org.lwjgl.lwjgl/lwjgl_util "2.9.0"]
-                 [org.lwjgl.lwjgl/lwjgl-platform "2.9.0"
-                  :classifier    ~(lwjgl-classifier)
-                  :native-prefix ""]
+                 [shadertone/lwjgl-natives "2.9.0"] ;; since org.lwjgl puts the natives in a bad spot
                  ;;[overtone "0.9.0-SNAPSHOT"]
                  [overtone "0.8.1"]
                  [watchtower "0.1.1"]]
