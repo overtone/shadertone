@@ -69,30 +69,9 @@ active shader and load them when you save the file.
 ### Option 2: download from clojars
 
 1. In your project.clj,
-    1. add `[shadertone "0.1.0"]` to your `:dependencies`.
-    2. add lwjgl handling.  This is a bit involved since it requires native libs.
-        1. add this to your `:dependencies`
-
-                [org.lwjgl.lwjgl/lwjgl "2.8.5"]
-                [org.lwjgl.lwjgl/lwjgl_util "2.8.5"]
-                [org.lwjgl.lwjgl/lwjgl-platform "2.8.5"
-                 :classifier    ~(lwjgl-classifier)
-                 :native-prefix ""]
-        1. at the top, add code like this to compute the `:classifier`
-
-                (require 'leiningen.core.eval)
-                (def LWJGL-CLASSIFIER
-                    "Per os native code classifier"
-                    {:macosx  "natives-osx"
-                     :linux   "natives-linux"
-                     :windows "natives-windows"})
-                (defn lwjgl-classifier
-                  "Return the os-dependent lwjgl native-code classifier"
-                  []
-                  (let [os (leiningen.core.eval/get-os)]
-                    (get LWJGL-CLASSIFIER os)))
-2. In your clojure code, add something like `(:require [shadertone.tone :as t])` or `(:require [shadertone.shader :as s])` to your namespace.
-3. Have fun!
+    1. add `[shadertone "0.2.0-SNAPSHOT"]` to your `:dependencies`.
+    2. In your clojure code, add something like `(:require [shadertone.tone :as t])` or `(:require [shadertone.shader :as s])` to your namespace.
+    3. Have fun!
 
 Since this could be a bit confusing, take a look at
 https://github.com/rogerallen/sot as a simple example of using
@@ -223,7 +202,7 @@ Via a call like this:
 
 ##### Synth Inputs
 
-New in 0.2.0, you can `tap` a synth value and easily communicate that
+__New in 0.2.0__, you can `tap` a synth value and easily communicate that
 value to your GLSL fragment shader.  See the "vvv" synth example in
 the 00_demo_intro_tour.clj demo and also the core.clj usage.
 
@@ -241,7 +220,7 @@ Finally, in your GLSL fragment shader, define your new input value as
 `uniform float iA;` and use `iA` to control your shader in interesting
 ways.
 
-#### Clojure API
+### Clojure API
 
 To use Shadertone, the main routine you will use are in the
 `shadertoy.tone` namespace.  Use `start` or `start-fullscreen` to bring
@@ -250,6 +229,7 @@ window is active will stop it gracefully before starting up the new
 window.
 
 `start` takes a few parameters
+* the first parameter is either the filename of a glsl shader or an atom containing a string with the glsl code.
 * `:width` & `:height` are the window size in pixels
 * `:title` is the window title
 * `:textures` are a vector of texture filenames or the
@@ -268,6 +248,58 @@ There is also a similar api in `shadertone.shader` that does not
 depend on Overtone.  This could be useful for other interactive
 Clojure libraries.  I'd like to know if this type of use case is
 desired, so please get in touch via Issue #14.
+
+### Lisp-like GLSL
+
+New in 0.2.0, you can program your GLSL in a lisp-like language.  It is a simple, straight translation
+layer from lisp to GLSL.  For those hoping for Clojure instead of lisp, 
+I welcome your suggestions and help, but a Clojure-to-C compiler was way too much work for me at this time.  
+
+See https://github.com/overtone/shadertone/blob/master/examples/03demo_translate.clj for how you can use this.
+
+#### Special forms
+* define functions
+    `(defn <return-type> <function-name> <function-args-vector> <body-stmt1> ... )`
+* function calls
+    `(<name> <arg1> <arg2> ... )`
+* variable creation/assignment
+    `(uniform <type> <name>)`
+    `(setq <type> <name> <statement>)`
+    `(setq <name> <statement>)`
+* for(;;) {}
+    `(forloop [ <init-stmt> <test-stmt> <step-stmt> ] <body-stmt1> ... )`
+* while() {}
+    `(while <test-stmt> <body-stmt1> ... )`
+* if() {}
+    `(if <test> <stmt>)`
+    `(if <test> (do <body-stmt1> ...))`
+* if() {} else {}
+    `(if <test> <stmt> <else-stmt>)`
+    `(if <test> (do <body-stmt1> ...) (do <else-stmt1> ...))`
+* switch () { case integer: ... break; ... default: ... }
+    `(switch <test> <case-int-1> <case-stmt-1> ...)`
+    cases can only be integer or :default keyword
+* break;
+    `(break)`
+* continue;
+    `(continue)`
+* return value;
+    `(return <statement>)`
+
+## Changes
+
+* 0.2.0-SNAPSHOT (not released yet)
+
+ * Issue #1 - create shaders in a lisp-like language
+ * Issue #8, #13 - fixup native library handling
+ * Update to LWJGL 2.9.0
+ * Issue #12 - Mac window positioning broken on LWJGL 2.9.0
+ * Add ability to 'tap' a synth and communicate that to a shader via :user-data
+ * Increased resolution of waveform and FFT texture to 4096 from 512.
+ * Spectrogram example
+ * Add redFrik demo for "lein run" 
+    
+* 0.1.0 Released May 5, 2013
 
 ## Acknowledgements
 
