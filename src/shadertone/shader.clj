@@ -59,6 +59,8 @@
                         :user-fn             nil
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
+;; FIXME -- after re-reading about refs, I don't see that we need them.
+;; could just use atoms as Sam suggested.
 (defonce reload-shader (ref false))
 (defonce reload-shader-str (ref ""))
 ;; Atom for the directory watcher future
@@ -665,6 +667,37 @@
     (if (not (future-cancel f))
       (println "ERROR: unable to stop-watcher!"))))
 
+;; ======================================================================
+;; allow shader to have user-data, just like tone.
+;; I'd like to make this better follow DRY, but this seems okay for now
+(defonce shader-user-data (atom {}))
+(defonce shader-user-locs (atom {}))
+(defn- shader-default-fn
+  [dispatch pgm-id]
+  (case dispatch ;; FIXME defmulti?
+    :init ;; find Uniform Location
+    (doseq [key (keys @shader-user-data)]
+      (let [loc (GL20/glGetUniformLocation pgm-id key)]
+        (swap! shader-user-locs assoc key loc)))
+    :pre-draw
+    (doseq [key (keys @shader-user-data)]
+      (let [loc (@shader-user-locs key)
+            val (deref (@shader-user-data key))]
+        ;;(println key loc val)
+        (if (float? val)
+          (GL20/glUniform1f loc val)
+          (when (vector? val)
+            (case (count val)
+              1 (GL20/glUniform1f loc (nth val 0))
+              2 (GL20/glUniform2f loc (nth val 0) (nth val 1))
+              3 (GL20/glUniform3f loc (nth val 0) (nth val 1) (nth val 2))
+              4 (GL20/glUniform4f loc (nth val 0) (nth val 1) (nth val 2) (nth val 3)))))))
+    :post-draw
+    nil ;; nothing to do
+    :destroy
+    nil ;; nothing to do
+    ))
+
 ;; Public API ===================================================
 
 (defn display-modes
@@ -724,7 +757,7 @@
   "Start a new shader display with the specified mode. Prefer start or
    start-fullscreen for simpler usage."
   [mode shader-filename-or-str-atom textures title
-   true-fullscreen? user-fn display-sync-hz]
+   true-fullscreen? user-data user-fn display-sync-hz]
   (let [is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
         shader-filename (if is-filename
                           shader-filename-or-str-atom)
@@ -742,6 +775,8 @@
           (swap! watcher-future
                  (fn [x] (start-watcher (.getParent (File. shader-filename))))))
         (add-watch shader-str-atom :shader-str-watch watch-shader-str-atom))
+      ;; set user data
+      (reset! shader-user-data user-data)
       ;; start the requested shader
       (.start (Thread.
                (fn [] (run-thread mode
@@ -758,16 +793,17 @@
    decorated (i.e. have a title bar)."
   [shader-filename-or-str-atom
    &{:keys [width height title display-sync-hz
-            textures user-fn]
+            textures user-data user-fn]
      :or {width           600
           height          600
           title           "shadertone"
           display-sync-hz 60
           textures        []
-          user-fn         nil}}]
+          user-data       {}
+          user-fn         shader-default-fn}}]
   (let [mode (DisplayMode. width height)]
     (decorate-display!)
-    (start-shader-display mode shader-filename-or-str-atom textures title false user-fn display-sync-hz)))
+    (start-shader-display mode shader-filename-or-str-atom textures title false user-data user-fn display-sync-hz)))
 
 (defn start-fullscreen
   "Start a new shader display in pseudo fullscreen mode. This creates a
@@ -775,10 +811,11 @@
    resolution. There are therefore no OS controls for closing the shader
    window. Use (stop) to close things manually. "
   [shader-filename-or-str-atom
-   &{:keys [display-sync-hz textures user-fn]
+   &{:keys [display-sync-hz textures user-data user-fn]
      :or {display-sync-hz 60
           textures        [nil]
-          user-fn         nil}}]
+          user-data       {}
+          user-fn         shader-default-fn}}]
      (let [mode (first (display-modes))]
        (undecorate-display!)
-       (start-shader-display mode shader-filename-or-str-atom textures "" false user-fn display-sync-hz)))
+       (start-shader-display mode shader-filename-or-str-atom textures "" false user-data user-fn display-sync-hz)))
