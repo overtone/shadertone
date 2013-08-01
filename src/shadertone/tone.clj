@@ -82,9 +82,9 @@
         freqs     (fft fft-buf signal 0.5 HANN)
         ;; indexer = 2, 4, 6, ..., N-4, N-2
         indexer   (+ n-samples 2
-                     (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase)
+                     (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
                         n-samples))
-        indexer   (round indexer 2)
+        indexer   (round indexer 2) ;; always point to the real sample
         ;; convert real,imag pairs to magnitude
         s0        (buf-rd 1 fft-buf indexer 1 1)
         s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
