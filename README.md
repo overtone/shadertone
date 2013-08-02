@@ -57,53 +57,17 @@ The library is just coming together, so expect change.  There are two main ways 
 ### Option 1: clone this repository
 
 1. See top of https://github.com/overtone/shadertone for details on how to clone the repo.
-2. Make sure you have leiningen 2.1.0 or later.  This fixed an issue with loading the LWJGL libraries.
-3. Bring up your favorite REPL and step through the demo files in the examples directory.  There are examples of all of the various shadertone features in the demos.
-4. When you want to create your own code, make some files like examples/yourcode.clj and examples/yourshader.glsl.  See below.
-5. Start with something basic in both files to be certain it works.
-6. You can edit both files "live".  Use your favorite REPL environment
-to adjust your Clojure code.  Shadertone will watch for edits to your
-active shader and load them when you save the file.
-7. Have fun!
+2. Bring up your favorite REPL and step through the demo files in the examples directory.  There are examples of all of the various shadertone features in the demos.
+3. When you want to create your own code, make some files like examples/yourcode.clj and examples/yourshader.glsl.  See below.
+4. Start with something basic in both files to be certain it works.
+5. You can edit both files "live".  Shadertone will watch for edits to your active shader and load them when you save the file.
 
 ### Option 2: download from clojars
 
-1. In your project.clj,
-    1. add `[shadertone "0.2.0-SNAPSHOT"]` to your `:dependencies`.
-    2. In your clojure code, add something like `(:require [shadertone.tone :as t])` or `(:require [shadertone.shader :as s])` to your namespace.
-    3. Have fun!
+In your project.clj, add `[shadertone "0.2.0"]` to your `:dependencies`.
 
-Since this could be a bit confusing, take a look at
-https://github.com/rogerallen/sot as a simple example of using
-shadertone via Leiningen.
-
-### yourcode.clj template
-
-Here is a simple template for yourcode.clj
-
-```clj
-(ns yourcode
-  (:use [overtone.live])
-  (:require [shadertone.tone :as t]))
-
-;; exec this to see a gray window pop up
-(t/start "examples/yourshader.glsl")
-
-;; exec this to watch the grey "throb" to red
-(demo 10 (* (sin-osc 0.5) (saw 500)))
-```
-
-Here is a simple template for yourshader.glsl.
-
-```c
-uniform float iOvertoneVolume;
-void main(void) {
-  gl_FragColor = vec4(0.5 + 5.0*iOvertoneVolume,
-                      0.5,
-                      0.5,
-                      1.0);
-}
-```
+See https://github.com/rogerallen/sot for a simple example of using
+shadertone via Leiningen.  Use the example directory in this repository for ideas.
 
 ### Writing Fragment Shaders
 
@@ -222,7 +186,7 @@ ways.
 
 ### Clojure API
 
-To use Shadertone, the main routine you will use are in the
+To use Shadertone, the main routines you will use are in the
 `shadertoy.tone` namespace.  Use `start` or `start-fullscreen` to bring
 up a window.  Use `stop` to bring it down.  Calling `start` while a
 window is active will stop it gracefully before starting up the new
@@ -232,6 +196,7 @@ window.
 * the first parameter is either the filename of a glsl shader or an atom containing a string with the glsl code.
 * `:width` & `:height` are the window size in pixels
 * `:title` is the window title
+* `:display-sync-hz` is for setting the refresh rate of the window.  By default it is 60 Hz.
 * `:textures` are a vector of texture filenames or the
   special texture keywords.  Up to 4 textures are allowed.
 * `:user-data` is a map of strings to atoms.  The strings must match a
@@ -242,22 +207,25 @@ window.
   need to.
 
 `start-fullscreen` takes just a subset of these, but the meanings are
-the same: `:textures`, `:user-data`, `:user-fn`
+the same: `:display-sync-hz`, `:textures`, `:user-data`, and `:user-fn`
 
-There is also a similar api in `shadertone.shader` that does not
-depend on Overtone.  This could be useful for other interactive
-Clojure libraries.  I'd like to know if this type of use case is
-desired, so please get in touch via Issue #14.
+The base api is in `shadertone.shader` and does not
+depend on Overtone.  This is useful when you don't need sound accompaniment and 
+could be useful for other interactive ideas.  
 
 ### Lisp-like GLSL
 
-New in 0.2.0, you can program your GLSL in a lisp-like language.  It is a simple, straight translation
-layer from lisp to GLSL.  For those hoping for Clojure instead of lisp, 
+__New in 0.2.0__, you can program your GLSL in a lisp-like language.  It is a simple, straight translation
+layer from lisp to a GLSL string.  For those hoping for Clojure instead of lisp, 
 I welcome your suggestions and help, but a Clojure-to-C compiler was way too much work for me at this time.  
 
-See https://github.com/overtone/shadertone/blob/master/examples/03demo_translate.clj for how you can use this.
+See https://github.com/overtone/shadertone/blob/master/examples/03demo_translate.clj for an example of how you can use this.
+In addition, there are tests in https://github.com/overtone/shadertone/blob/master/test/shadertone/translate_test.clj that could be informative.
 
-#### Special forms
+To access this functionality, import the `shadertone.translate` namespace and use `defshader` to compile your
+lisp into a string for passing to the `start` function.
+
+#### Special forms and how they relate to GLSL code
 * define functions
     `(defn <return-type> <function-name> <function-args-vector> <body-stmt1> ... )`
 * function calls
@@ -288,18 +256,18 @@ See https://github.com/overtone/shadertone/blob/master/examples/03demo_translate
 
 ## Changes
 
-* 0.2.0-SNAPSHOT (not released yet)
+* __0.2.0 - Released Aug 1, 2013__
 
- * Issue #1 - create shaders in a lisp-like language
- * Issue #8, #13 - fixup native library handling
- * Update to LWJGL 2.9.0
- * Issue #12 - Mac window positioning broken on LWJGL 2.9.0
- * Add ability to 'tap' a synth and communicate that to a shader via :user-data
- * Increased resolution of waveform and FFT texture to 4096 from 512.
- * Spectrogram example
- * Add redFrik demo for "lein run" 
+ * Enhancement: Add ability to 'tap' a synth and communicate that to a shader via :user-data
+ * Enhancement: create shaders in a lisp-like language (Issue #1)
+ * Enhancement: "lein run" does something now! Added redFrik tweet-inspired demo. 
+ * Enhancement: Increased resolution of waveform and FFT texture to 4096 from 512.
+ * Enhancement: Add Spectrogram example using FFT texture and :previous-frame texture.
+ * Enhancement: Update to LWJGL 2.9.0
+ * Bugfix: fixup native library handling (Issues #8, #13)
+ * Bugfix: Issue #12 - Mac window positioning broken on LWJGL 2.9.0
     
-* 0.1.0 Released May 5, 2013
+* __0.1.0 - Released May 5, 2013__
 
 ## Acknowledgements
 
