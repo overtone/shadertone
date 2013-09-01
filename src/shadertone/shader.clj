@@ -761,6 +761,12 @@
   (let [is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
         shader-filename (if is-filename
                           shader-filename-or-str-atom)
+        ;; Fix for issue 15.  Normalize the given shader-filename to the
+        ;; path separators that the system will use.  If user gives path/to/shader.glsl
+        ;; and windows returns this as path\to\shader.glsl from .getPath, this
+        ;; change should make comparison to path\to\shader.glsl work.
+        shader-filename (if (and is-filename (not (nil? shader-filename)))
+                          (.getPath (File. shader-filename)))
         shader-str-atom (if-not is-filename
                           shader-filename-or-str-atom
                           (atom nil))
