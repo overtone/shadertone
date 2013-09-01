@@ -64,7 +64,7 @@ The library is just coming together, so expect change.  There are two main ways 
 
 ### Option 2: download from clojars
 
-In your project.clj, add `[shadertone "0.2.0"]` to your `:dependencies`.
+In your project.clj, add `[shadertone "0.2.1"]` to your `:dependencies`.
 
 See https://github.com/rogerallen/sot for a simple example of using
 shadertone via Leiningen.  Use the example directory in this repository for ideas.
@@ -210,14 +210,14 @@ window.
 the same: `:display-sync-hz`, `:textures`, `:user-data`, and `:user-fn`
 
 The base api is in `shadertone.shader` and does not
-depend on Overtone.  This is useful when you don't need sound accompaniment and 
-could be useful for other interactive ideas.  
+depend on Overtone.  This is useful when you don't need sound accompaniment and
+could be useful for other interactive ideas.
 
 ### Lisp-like GLSL
 
 __New in 0.2.0__, you can program your GLSL in a lisp-like language.  It is a simple, straight translation
-layer from lisp to a GLSL string.  For those hoping for Clojure instead of lisp, 
-I welcome your suggestions and help, but a Clojure-to-C compiler was way too much work for me at this time.  
+layer from lisp to a GLSL string.  For those hoping for Clojure instead of lisp,
+I welcome your suggestions and help, but a Clojure-to-C compiler was way too much work for me at this time.
 
 See https://github.com/overtone/shadertone/blob/master/examples/03demo_translate.clj for an example of how you can use this.
 In addition, there are tests in https://github.com/overtone/shadertone/blob/master/test/shadertone/translate_test.clj that could be informative.
@@ -256,17 +256,21 @@ lisp into a string for passing to the `start` function.
 
 ## Changes
 
+* __0.2.1 - Released Sep 1, 2013__
+
+ * Bugfix: Issue #15 - Automatic file reloading fail on cygwin.
+
 * __0.2.0 - Released Aug 1, 2013__
 
  * Enhancement: Add ability to 'tap' a synth and communicate that to a shader via :user-data
  * Enhancement: create shaders in a lisp-like language (Issue #1)
- * Enhancement: "lein run" does something now! Added redFrik tweet-inspired demo. 
+ * Enhancement: "lein run" does something now! Added redFrik tweet-inspired demo.
  * Enhancement: Increased resolution of waveform and FFT texture to 4096 from 512.
  * Enhancement: Add Spectrogram example using FFT texture and :previous-frame texture.
  * Enhancement: Update to LWJGL 2.9.0
  * Bugfix: fixup native library handling (Issues #8, #13)
  * Bugfix: Issue #12 - Mac window positioning broken on LWJGL 2.9.0
-    
+
 * __0.1.0 - Released May 5, 2013__
 
 ## Acknowledgements
