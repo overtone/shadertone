@@ -258,9 +258,9 @@ lisp into a string for passing to the `start` function.
 
 * __0.2.1 - Released Sep 1, 2013__
 
- * Bugfix: Issue #15 - Automatic file reloading fail on cygwin.
+ * Bugfix: [Issue #15](https://github.com/overtone/shadertone/issues/15) - Automatic file reloading fail on cygwin.
 
-* __0.2.0 - Released Aug 1, 2013__
+* __[0.2.0](https://github.com/overtone/shadertone/issues?milestone=2&state=closed) - Released Aug 1, 2013__
 
  * Enhancement: Add ability to 'tap' a synth and communicate that to a shader via :user-data
  * Enhancement: create shaders in a lisp-like language (Issue #1)
@@ -268,10 +268,13 @@ lisp into a string for passing to the `start` function.
  * Enhancement: Increased resolution of waveform and FFT texture to 4096 from 512.
  * Enhancement: Add Spectrogram example using FFT texture and :previous-frame texture.
  * Enhancement: Update to LWJGL 2.9.0
- * Bugfix: fixup native library handling (Issues #8, #13)
- * Bugfix: Issue #12 - Mac window positioning broken on LWJGL 2.9.0
+ * Bugfix: fixup native library handling (Issues [#8](https://github.com/overtone/shadertone/issues/8), [#13](https://github.com/overtone/shadertone/issues/13))
+ * Bugfix: [Issue #12](https://github.com/overtone/shadertone/issues/12) - Mac window positioning broken on LWJGL 2.9.0
 
-* __0.1.0 - Released May 5, 2013__
+* __[0.1.0](https://github.com/overtone/shadertone/issues?milestone=1&state=closed) - Released May 5, 2013__
+
+ * Initial Release
+
 
 ## Acknowledgements
 
