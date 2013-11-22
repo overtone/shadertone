@@ -19,8 +19,7 @@
   (tap "system-vol" 60 (lag (abs (in:ar 0)) 0.1)))
 
 (defonce voltap-synth
-  (vol :target (foundation-monitor-group)))
-;; FIXME 0.9  (vol [:after (foundation-monitor-group)]))
+  (vol [:after (foundation-monitor-group)]))
 
 ;; ----------------------------------------------------------------------
 ;; Grab Waveform & FFT data and send it to the iChannel[0] texture.
@@ -41,8 +40,8 @@
                                (.put init-fft-array)
                                (.put init-wave-array)
                                (.flip)))
-(defonce wave-bus-synth (bus->buf :target (foundation-monitor-group) 0 wave-buf))
-;; FIXME 0.9 (defonce wave-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 wave-buf))
+
+(defonce wave-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 wave-buf))
 
 (defn- ensure-internal-server!
   "Throws an exception if the server isn't internal - wave relies on
@@ -92,8 +91,7 @@
     (record-buf lin-mag scope-buf)))
 
 (defonce fft-bus-synth
-  (bus-freqs->buf :target (foundation-monitor-group) 0 fft-buf))
-;; FIXME 0.9  (bus-freqs->buf [:after (foundation-monitor-group)] 0 fft-buf))
+  (bus-freqs->buf [:after (foundation-monitor-group)] 0 fft-buf))
 
 ;; user-fn for shader display of waveform and fft
 (defn tone-fftwave-fn
