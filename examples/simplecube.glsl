@@ -17,8 +17,8 @@ void main(void) {
     float asp = iResolution.x / iResolution.y;
     vec3  rd = normalize(vec3(asp*pixel.x, pixel.y, -2.0));
     vec2  mouse = iMouse.xy / iResolution.xy;
-    float roty;
-    float rotx;
+    float roty = 0.0;
+    float rotx = 0.0;
     if (iMouse.z <= 0.0) {
         roty = iGlobalTime*0.25;
     } else {
