@@ -8,7 +8,6 @@
                  [org.lwjgl.lwjgl/lwjgl_util "2.9.0"]
                  [shadertone/lwjgl-natives "2.9.0"] ;; since org.lwjgl puts the natives in a bad spot
                  [overtone "0.9.0-RC2"]
-                 [overtone "0.8.1"]
                  [watchtower "0.1.1"]]
   :main ^{:skip-aot true} shadertone.core
   ;; add leipzig for use in examples
