@@ -64,7 +64,7 @@ The library is just coming together, so expect change.  There are two main ways 
 
 ### Option 2: download from clojars
 
-In your project.clj, add `[shadertone "0.2.1"]` to your `:dependencies`.
+In your project.clj, add `[shadertone "0.2.2"]` to your `:dependencies`.
 
 See https://github.com/rogerallen/sot for a simple example of using
 shadertone via Leiningen.  Use the example directory in this repository for ideas.
