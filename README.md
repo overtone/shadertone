@@ -256,6 +256,11 @@ lisp into a string for passing to the `start` function.
 
 ## Changes
 
+* __[0.2.2](https://github.com/overtone/shadertone/issues?milestone=4) - Released Nov 25, 2013__
+
+ * Update: [Issue #19]Overtone 0.9.1
+ * Bugfix: uninitialized `rotx` variable in simplecube.glsl example.
+
 * __0.2.1 - Released Sep 1, 2013__
 
  * Bugfix: [Issue #15](https://github.com/overtone/shadertone/issues/15) - Automatic file reloading fail on cygwin.
