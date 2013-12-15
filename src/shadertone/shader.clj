@@ -822,6 +822,6 @@
           textures        [nil]
           user-data       {}
           user-fn         shader-default-fn}}]
-     (let [mode (first (display-modes))]
+     (let [mode (Display/getDisplayMode)]
        (undecorate-display!)
        (start-shader-display mode shader-filename-or-str-atom textures "" false user-data user-fn display-sync-hz)))
