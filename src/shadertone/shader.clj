@@ -156,9 +156,7 @@
         (Display/setFullscreen true))
       (Display/setTitle title)
       (Display/setVSyncEnabled true)
-      (if (= "Mac OS X" (System/getProperty "os.name")) ;; FIXME #12
-        (Display/setLocation 0 (- (.getHeight (Display/getDesktopDisplayMode)) height))
-        (Display/setLocation 0 0))
+      (Display/setLocation 0 0)
       (Display/create pixel-format context-attributes))))
 
 (defn- init-buffers
