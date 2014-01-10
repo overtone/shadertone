@@ -8,11 +8,35 @@
            (java.nio IntBuffer FloatBuffer ByteOrder)
            (java.util Calendar)
            (javax.imageio ImageIO)
+           (java.lang.reflect Field)
            (org.lwjgl BufferUtils)
            (org.lwjgl.input Mouse)
            (org.lwjgl.opengl ContextAttribs Display DisplayMode
                              GL11 GL12 GL13 GL15 GL20
                              PixelFormat)))
+
+;; ======================================================================
+;; some code cribbed from
+;; https://github.com/ztellman/penumbra/blob/master/src/penumbra/opengl/core.clj
+;; Causes errors in glGetError to throw an exception
+(def containers [GL11 GL12 GL13 GL15 GL20])
+(defn- get-fields [#^Class static-class]
+  (. static-class getFields))
+(defn- enum-name
+  "Takes the numeric value of a gl constant (i.e. GL_LINEAR), and gives the name"
+  [enum-value]
+  (if (= 0 enum-value)
+    "NONE"
+    (.getName
+     #^Field (some
+              #(if (= enum-value (.get #^Field % nil)) % nil)
+              (mapcat get-fields containers)))))
+(defn- except-gl-errors
+  [msg]
+  (let [error (GL11/glGetError)
+        error-string (str "OpenGL Error(" error "):" (enum-name error) ": " msg)]
+    (if (not (zero? error))
+      (throw (Exception. error-string)))))
 
 ;; ======================================================================
 ;; State Variables
@@ -177,8 +201,7 @@
         _                   (GL15/glBufferData GL15/GL_ARRAY_BUFFER
                                            vertices-buffer
                                            GL15/GL_STATIC_DRAW)
-        ;;_ (println "init-buffers errors?" (GL11/glGetError))
-        ]
+        _ (except-gl-errors "@ end of init-buffers")]
     (swap! globals
            assoc
            :vbo-id vbo-id
@@ -196,7 +219,8 @@
   (let [shader-id         (GL20/glCreateShader shader-type)
         _                 (GL20/glShaderSource shader-id shader-str)
         _                 (GL20/glCompileShader shader-id)
-        gl-compile-status (GL20/glGetShaderi shader-id GL20/GL_COMPILE_STATUS)]
+        gl-compile-status (GL20/glGetShaderi shader-id GL20/GL_COMPILE_STATUS)
+        _ (except-gl-errors "@ end of let load-shader")]
     (when (== gl-compile-status GL11/GL_FALSE)
       (println "ERROR: Loading a Shader:")
       (println (GL20/glGetShaderInfoLog shader-id 10000)))
@@ -205,20 +229,24 @@
 (defn- init-shaders
   []
   (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
-        ;;fs-shader             (slurp-fs (:shader-filename @globals))
-        ;;_ (println "Here is the shader...\n" fs-shader)
         _                     (if (nil? (:shader-filename @globals))
                                 (println "Loading shader from string")
                                 (println "Loading shader from file:" (:shader-filename @globals)))
         fs-id                 (load-shader (:shader-str @globals) GL20/GL_FRAGMENT_SHADER)
         pgm-id                (GL20/glCreateProgram)
+        _ (except-gl-errors "@ let init-shaders glCreateProgram")
         _                     (GL20/glAttachShader pgm-id vs-id)
+        _ (except-gl-errors "@ let init-shaders glAttachShader VS")
         _                     (GL20/glAttachShader pgm-id fs-id)
+        _ (except-gl-errors "@ let init-shaders glAttachShader FS")
         _                     (GL20/glLinkProgram pgm-id)
-        gl-link-status        (GL20/glGetShaderi pgm-id GL20/GL_LINK_STATUS)
+        _ (except-gl-errors "@ let init-shaders glLinkProgram")
+        gl-link-status        (GL20/glGetProgrami pgm-id GL20/GL_LINK_STATUS)
+        _ (except-gl-errors "@ let init-shaders glGetProgram link status")
         _                     (when (== gl-link-status GL11/GL_FALSE)
                                 (println "ERROR: Linking Shaders:")
                                 (println (GL20/glGetProgramInfoLog pgm-id 10000)))
+        _ (except-gl-errors "@ let before GetUniformLocation")
         i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
         i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
         i-channel-time-loc    (GL20/glGetUniformLocation pgm-id "iChannelTime")
@@ -228,6 +256,7 @@
         i-channel2-loc        (GL20/glGetUniformLocation pgm-id "iChannel2")
         i-channel3-loc        (GL20/glGetUniformLocation pgm-id "iChannel3")
         i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
+        _ (except-gl-errors "@ end of let init-shaders")
         ]
     (swap! globals
            assoc
@@ -356,6 +385,7 @@
                             format
                             GL11/GL_UNSIGNED_BYTE
                             buffer)
+         (except-gl-errors "@ end of load-texture if-stmt")
          tex-id)
        (when (= filename :previous-frame)
          ;; :previous-frame initial setup
@@ -365,6 +395,7 @@
          (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
          (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)
+         (except-gl-errors "@ end of load-texture else-stmt")
          tex-id))))
 
 (defn- init-textures
@@ -392,16 +423,22 @@
                          (slurp-fs shader-filename))
         new-fs-id      (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         new-pgm-id     (GL20/glCreateProgram)
+        _ (except-gl-errors "@ try-reload-shader glCreateProgram")
         _              (GL20/glAttachShader new-pgm-id vs-id)
+        _ (except-gl-errors "@ try-reload-shader glAttachShader VS")
         _              (GL20/glAttachShader new-pgm-id new-fs-id)
+        _ (except-gl-errors "@ try-reload-shader glAttachShader FS")
         _              (GL20/glLinkProgram new-pgm-id)
-        gl-link-status (GL20/glGetShaderi new-pgm-id GL20/GL_LINK_STATUS)]
+        _ (except-gl-errors "@ try-reload-shader glLinkProgram")
+        gl-link-status (GL20/glGetProgrami new-pgm-id GL20/GL_LINK_STATUS)
+        _ (except-gl-errors "@ end of let try-reload-shader")]
     (dosync (ref-set reload-shader false))
     (if (== gl-link-status GL11/GL_FALSE)
       (do
         (println "ERROR: Linking Shaders:")
         (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
-        (GL20/glUseProgram pgm-id))
+        (GL20/glUseProgram pgm-id)
+        (except-gl-errors "@ try-reload-shader if-stmt"))
       (let [_ (println "Reloading shader:" shader-filename)
             i-resolution-loc   (GL20/glGetUniformLocation new-pgm-id "iResolution")
             i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iGlobalTime")
@@ -419,6 +456,7 @@
         (GL20/glDetachShader pgm-id vs-id)
         (GL20/glDetachShader pgm-id fs-id)
         (GL20/glDeleteShader fs-id)
+        (except-gl-errors "@ try-reload-shader else-stmt")
         (swap! globals
                assoc
                :fs-id new-fs-id
@@ -458,6 +496,8 @@
       (try-reload-shader)         ; this must call glUseProgram
       (GL20/glUseProgram pgm-id)) ; else, normal path...
 
+    (except-gl-errors "@ draw before clear")
+
     (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
 
     (when user-fn
@@ -474,6 +514,8 @@
          (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))
          :default
          (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i)))))
+
+    (except-gl-errors "@ draw after activate textures")
 
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 1.0)
@@ -500,8 +542,14 @@
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
     (GL11/glVertexPointer 4 GL11/GL_FLOAT 0 0)
+
+    (except-gl-errors "@ draw prior to DrawArrays")
+
     ;; Draw the vertices
     (GL11/glDrawArrays GL11/GL_TRIANGLES 0 vertices-count)
+
+    (except-gl-errors "@ draw after DrawArrays")
+
     ;; Put everything back to default (deselect)
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
     (GL11/glDisableClientState GL11/GL_VERTEX_ARRAY)
@@ -512,11 +560,14 @@
         (GL11/glBindTexture GL13/GL_TEXTURE_CUBE_MAP 0)
         (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)))
 
+    (except-gl-errors "@ draw prior to post-draw")
+
     (when user-fn
       (user-fn :post-draw pgm-id))
 
+    (except-gl-errors "@ draw after post-draw")
+
     (GL20/glUseProgram 0)
-    ;;(println "draw errors?" (GL11/glGetError))
 
     ;; copy the rendered image
     (dotimes [i (count tex-ids)]
@@ -524,7 +575,8 @@
         (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))
         (GL11/glCopyTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGBA8 0 0 width height 0)
         (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)))
-    ))
+
+    (except-gl-errors "@ draw after copy")))
 
 (defn- update
   []
