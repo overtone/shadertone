@@ -209,9 +209,8 @@
 
 (def vs-shader
   (str "#version 120\n"
-       "attribute vec4 in_Position;\n"
        "void main(void) {\n"
-       "    gl_Position = in_Position;\n"
+       "    gl_Position = gl_Vertex;\n"
        "}\n"))
 
 (defn- load-shader
