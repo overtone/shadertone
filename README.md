@@ -64,7 +64,7 @@ The library is just coming together, so expect change.  There are two main ways 
 
 ### Option 2: download from clojars
 
-In your project.clj, add `[shadertone "0.2.2"]` to your `:dependencies`.
+In your project.clj, add `[shadertone "0.2.3"]` to your `:dependencies`.
 
 See https://github.com/rogerallen/sot for a simple example of using
 shadertone via Leiningen.  Use the example directory in this repository for ideas.
@@ -256,6 +256,12 @@ lisp into a string for passing to the `start` function.
 
 ## Changes
 
+* __0.2.3 - Released Mar 8, 2014__
+
+ * Enhancement: Update to LWJGL 2.9.1
+ * Bugfix: [Issue #22](https://github.com/overtone/shadertone/issues/22) - Fix support for Intel Graphics chips.  Thanks to [josephwilk](https://github.com/josephwilk)
+ * Bugfix: [Issue #20](https://github.com/overtone/shadertone/issues/20) - Fix fullscreen support on Retina Macs.  Thanks to [johnjelinek](https://github.com/johnjelinek)
+
 * __[0.2.2](https://github.com/overtone/shadertone/issues?milestone=4) - Released Nov 25, 2013__
 
  * Update: [Issue #19](https://github.com/overtone/shadertone/issues/19) - Overtone 0.9.1
@@ -292,7 +298,8 @@ Shadertone.  Specifically, I'd like to thank:
 
 ## License
 
-Copyright © 2013 Roger Allen and [other contributors](https://github.com/overtone/shadertone/contributors).
+Copyright © 2013-2014 Roger Allen and [other
+contributors](https://github.com/overtone/shadertone/contributors).
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
