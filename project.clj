@@ -8,5 +8,7 @@
                  [overtone "0.9.1"]
                  [watchtower "0.1.1"]]
   :main ^{:skip-aot true} shadertone.core
+  ;; add per WARNING: JVM argument TieredStopAtLevel=1 is active...
+  :jvm-opts ^:replace []
   ;; add leipzig for use in examples
   :profiles {:dev {:dependencies [[leipzig "0.6.0"]]}})
