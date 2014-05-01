@@ -42,6 +42,7 @@
 ;; State Variables
 ;; The globals atom is a map of state variables for use in the gl thread
 (defonce globals (atom {:active              :no  ;; :yes/:stopping/:no
+                        :shader-good         true ;; false in error condition
                         :width               0
                         :height              0
                         :title               ""
@@ -83,10 +84,8 @@
                         :user-fn             nil
                         }))
 ;; The reload-shader ref communicates across the gl & watcher threads
-;; FIXME -- after re-reading about refs, I don't see that we need them.
-;; could just use atoms as Sam suggested.
-(defonce reload-shader (ref false))
-(defonce reload-shader-str (ref ""))
+(defonce reload-shader (atom false))
+(defonce reload-shader-str (atom ""))
 ;; Atom for the directory watcher future
 (defonce watcher-future (atom (future (fn [] nil))))
 ;; Flag to help avoid reloading shader right after loading it for the
@@ -223,51 +222,56 @@
     (when (== gl-compile-status GL11/GL_FALSE)
       (println "ERROR: Loading a Shader:")
       (println (GL20/glGetShaderInfoLog shader-id 10000)))
-    shader-id))
+    [gl-compile-status shader-id]))
 
 (defn- init-shaders
   []
-  (let [vs-id                 (load-shader vs-shader GL20/GL_VERTEX_SHADER)
-        _                     (if (nil? (:shader-filename @globals))
-                                (println "Loading shader from string")
-                                (println "Loading shader from file:" (:shader-filename @globals)))
-        fs-id                 (load-shader (:shader-str @globals) GL20/GL_FRAGMENT_SHADER)
-        pgm-id                (GL20/glCreateProgram)
-        _ (except-gl-errors "@ let init-shaders glCreateProgram")
-        _                     (GL20/glAttachShader pgm-id vs-id)
-        _ (except-gl-errors "@ let init-shaders glAttachShader VS")
-        _                     (GL20/glAttachShader pgm-id fs-id)
-        _ (except-gl-errors "@ let init-shaders glAttachShader FS")
-        _                     (GL20/glLinkProgram pgm-id)
-        _ (except-gl-errors "@ let init-shaders glLinkProgram")
-        gl-link-status        (GL20/glGetProgrami pgm-id GL20/GL_LINK_STATUS)
-        _ (except-gl-errors "@ let init-shaders glGetProgram link status")
-        _                     (when (== gl-link-status GL11/GL_FALSE)
-                                (println "ERROR: Linking Shaders:")
-                                (println (GL20/glGetProgramInfoLog pgm-id 10000)))
-        _ (except-gl-errors "@ let before GetUniformLocation")
-        i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
-        i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
-        i-channel-time-loc    (GL20/glGetUniformLocation pgm-id "iChannelTime")
-        i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
-        i-channel0-loc        (GL20/glGetUniformLocation pgm-id "iChannel0")
-        i-channel1-loc        (GL20/glGetUniformLocation pgm-id "iChannel1")
-        i-channel2-loc        (GL20/glGetUniformLocation pgm-id "iChannel2")
-        i-channel3-loc        (GL20/glGetUniformLocation pgm-id "iChannel3")
-        i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
-        _ (except-gl-errors "@ end of let init-shaders")
-        ]
-    (swap! globals
-           assoc
-           :vs-id vs-id
-           :fs-id fs-id
-           :pgm-id pgm-id
-           :i-resolution-loc i-resolution-loc
-           :i-global-time-loc i-global-time-loc
-           :i-channel-time-loc i-channel-time-loc
-           :i-mouse-loc i-mouse-loc
-           :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
-           :i-date-loc i-date-loc)))
+  (let [[ok? vs-id] (load-shader vs-shader GL20/GL_VERTEX_SHADER)
+        _           (assert (== ok? GL11/GL_TRUE)) ;; something is really wrong if our vs is bad
+        _           (if (nil? (:shader-filename @globals))
+                      (println "Loading shader from string")
+                      (println "Loading shader from file:" (:shader-filename @globals)))
+        [ok? fs-id] (load-shader (:shader-str @globals) GL20/GL_FRAGMENT_SHADER)]
+    (if (== ok? GL11/GL_TRUE)
+      (let [pgm-id                (GL20/glCreateProgram)
+            _ (except-gl-errors "@ let init-shaders glCreateProgram")
+            _                     (GL20/glAttachShader pgm-id vs-id)
+            _ (except-gl-errors "@ let init-shaders glAttachShader VS")
+            _                     (GL20/glAttachShader pgm-id fs-id)
+            _ (except-gl-errors "@ let init-shaders glAttachShader FS")
+            _                     (GL20/glLinkProgram pgm-id)
+            _ (except-gl-errors "@ let init-shaders glLinkProgram")
+            gl-link-status        (GL20/glGetProgrami pgm-id GL20/GL_LINK_STATUS)
+            _ (except-gl-errors "@ let init-shaders glGetProgram link status")
+            _                     (when (== gl-link-status GL11/GL_FALSE)
+                                    (println "ERROR: Linking Shaders:")
+                                    (println (GL20/glGetProgramInfoLog pgm-id 10000)))
+            _ (except-gl-errors "@ let before GetUniformLocation")
+            i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
+            i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+            i-channel-time-loc    (GL20/glGetUniformLocation pgm-id "iChannelTime")
+            i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
+            i-channel0-loc        (GL20/glGetUniformLocation pgm-id "iChannel0")
+            i-channel1-loc        (GL20/glGetUniformLocation pgm-id "iChannel1")
+            i-channel2-loc        (GL20/glGetUniformLocation pgm-id "iChannel2")
+            i-channel3-loc        (GL20/glGetUniformLocation pgm-id "iChannel3")
+            i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
+            _ (except-gl-errors "@ end of let init-shaders")
+            ]
+        (swap! globals
+               assoc
+               :shader-good true
+               :vs-id vs-id
+               :fs-id fs-id
+               :pgm-id pgm-id
+               :i-resolution-loc i-resolution-loc
+               :i-global-time-loc i-global-time-loc
+               :i-channel-time-loc i-channel-time-loc
+               :i-mouse-loc i-mouse-loc
+               :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
+               :i-date-loc i-date-loc))
+      ;; we didn't load the shader, don't be drawing
+      (swap! globals assoc :shader-good false))))
 
 (defn- buffer-swizzle-0123-1230
   "given a ARGB pixel array, swizzle it to be RGBA.  Or, ABGR to BGRA"
@@ -417,56 +421,70 @@
 (defn- try-reload-shader
   []
   (let [{:keys [vs-id fs-id pgm-id shader-filename user-fn]} @globals
-        fs-shader      (if (nil? shader-filename)
-                         @reload-shader-str
-                         (slurp-fs shader-filename))
-        new-fs-id      (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
-        new-pgm-id     (GL20/glCreateProgram)
-        _ (except-gl-errors "@ try-reload-shader glCreateProgram")
-        _              (GL20/glAttachShader new-pgm-id vs-id)
-        _ (except-gl-errors "@ try-reload-shader glAttachShader VS")
-        _              (GL20/glAttachShader new-pgm-id new-fs-id)
-        _ (except-gl-errors "@ try-reload-shader glAttachShader FS")
-        _              (GL20/glLinkProgram new-pgm-id)
-        _ (except-gl-errors "@ try-reload-shader glLinkProgram")
-        gl-link-status (GL20/glGetProgrami new-pgm-id GL20/GL_LINK_STATUS)
-        _ (except-gl-errors "@ end of let try-reload-shader")]
-    (dosync (ref-set reload-shader false))
-    (if (== gl-link-status GL11/GL_FALSE)
-      (do
-        (println "ERROR: Linking Shaders:")
-        (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
+        vs-id (if (= vs-id 0)
+                (let [[ok? vs-id] (load-shader vs-shader GL20/GL_VERTEX_SHADER)
+                      _ (assert (== ok? GL11/GL_TRUE))]
+                  vs-id)
+                vs-id)
+        fs-shader       (if (nil? shader-filename)
+                          @reload-shader-str
+                          (slurp-fs shader-filename))
+        [ok? new-fs-id] (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
+        _               (reset! reload-shader false)]
+    (if (== ok? GL11/GL_FALSE)
+      ;; we didn't reload a good shader. Go back to the old one if possible
+      (when (:shader-good @globals)
         (GL20/glUseProgram pgm-id)
-        (except-gl-errors "@ try-reload-shader if-stmt"))
-      (let [_ (println "Reloading shader:" shader-filename)
-            i-resolution-loc   (GL20/glGetUniformLocation new-pgm-id "iResolution")
-            i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iGlobalTime")
-            i-channel-time-loc (GL20/glGetUniformLocation new-pgm-id "iChannelTime")
-            i-mouse-loc        (GL20/glGetUniformLocation new-pgm-id "iMouse")
-            i-channel0-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel0")
-            i-channel1-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel1")
-            i-channel2-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel2")
-            i-channel3-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel3")
-            i-date-loc         (GL20/glGetUniformLocation new-pgm-id "iDate")]
-        (GL20/glUseProgram new-pgm-id)
-        (when user-fn
-          (user-fn :init new-pgm-id))
-        ;; cleanup the old program
-        (GL20/glDetachShader pgm-id vs-id)
-        (GL20/glDetachShader pgm-id fs-id)
-        (GL20/glDeleteShader fs-id)
-        (except-gl-errors "@ try-reload-shader else-stmt")
-        (swap! globals
-               assoc
-               :fs-id new-fs-id
-               :pgm-id new-pgm-id
-               :i-resolution-loc i-resolution-loc
-               :i-global-time-loc i-global-time-loc
-               :i-channel-time-loc i-channel-time-loc
-               :i-mouse-loc i-mouse-loc
-               :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
-               :i-date-loc i-date-loc
-               :shader-str fs-shader)))))
+        (except-gl-errors "@ try-reload-shader useProgram1"))
+      ;; the load shader went well, keep going...
+      (let [new-pgm-id     (GL20/glCreateProgram)
+            _ (except-gl-errors "@ try-reload-shader glCreateProgram")
+            _              (GL20/glAttachShader new-pgm-id vs-id)
+            _ (except-gl-errors "@ try-reload-shader glAttachShader VS")
+            _              (GL20/glAttachShader new-pgm-id new-fs-id)
+            _ (except-gl-errors "@ try-reload-shader glAttachShader FS")
+            _              (GL20/glLinkProgram new-pgm-id)
+            _ (except-gl-errors "@ try-reload-shader glLinkProgram")
+            gl-link-status (GL20/glGetProgrami new-pgm-id GL20/GL_LINK_STATUS)
+            _ (except-gl-errors "@ end of let try-reload-shader")]
+        (if (== gl-link-status GL11/GL_FALSE)
+          (do
+            (println "ERROR: Linking Shaders: (reloading previous program)")
+            (println (GL20/glGetProgramInfoLog new-pgm-id 10000))
+            (GL20/glUseProgram pgm-id)
+            (except-gl-errors "@ try-reload-shader useProgram2"))
+          (let [_ (println "Reloading shader:" shader-filename)
+                i-resolution-loc   (GL20/glGetUniformLocation new-pgm-id "iResolution")
+                i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iGlobalTime")
+                i-channel-time-loc (GL20/glGetUniformLocation new-pgm-id "iChannelTime")
+                i-mouse-loc        (GL20/glGetUniformLocation new-pgm-id "iMouse")
+                i-channel0-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel0")
+                i-channel1-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel1")
+                i-channel2-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel2")
+                i-channel3-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel3")
+                i-date-loc         (GL20/glGetUniformLocation new-pgm-id "iDate")]
+            (GL20/glUseProgram new-pgm-id)
+            (except-gl-errors "@ try-reload-shader useProgram")
+            (when user-fn
+              (user-fn :init new-pgm-id))
+            ;; cleanup the old program
+            (when (not= pgm-id 0)
+              (GL20/glDetachShader pgm-id vs-id)
+              (GL20/glDetachShader pgm-id fs-id)
+              (GL20/glDeleteShader fs-id))
+            (except-gl-errors "@ try-reload-shader detach/delete")
+            (swap! globals
+                   assoc
+                   :shader-good true
+                   :fs-id new-fs-id
+                   :pgm-id new-pgm-id
+                   :i-resolution-loc i-resolution-loc
+                   :i-global-time-loc i-global-time-loc
+                   :i-channel-time-loc i-channel-time-loc
+                   :i-mouse-loc i-mouse-loc
+                   :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
+                   :i-date-loc i-date-loc
+                   :shader-str fs-shader)))))))
 
 (defn- draw
   []
@@ -605,7 +623,13 @@
            :mouse-pos-y cur-mouse-pos-y
            :mouse-ori-x cur-mouse-ori-x
            :mouse-ori-y cur-mouse-ori-y)
-    (draw)))
+    (if (:shader-good @globals)
+      (draw)
+      ;; just clear to prevent strobing awfulness
+      (do
+        (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
+        (if @reload-shader
+          (try-reload-shader))))))
 
 (defn- destroy-gl
   []
@@ -681,27 +705,28 @@
   (when (not= old new)
     ;; if already reloading, wait for that to finish
     (while @reload-shader
+      ;; FIXME this can hang.  We should timeout instead
       (Thread/sleep 100))
-    (dosync (ref-set reload-shader-str new))
-    (dosync (ref-set reload-shader true))))
+    (reset! reload-shader-str new)
+    (reset! reload-shader true)))
 
 ;; watch the shader directory & reload the current shader if it changes.
 (defn- if-match-reload-shader
   [files]
   (if @watcher-just-started
     ;; allow first, automatic call to pass unnoticed
-    (swap! watcher-just-started (fn [x] false))
+    (reset! watcher-just-started false)
     ;; otherwise do the reload check
     (doseq [f files]
       (when (= (.getPath f) (:shader-filename @globals))
         ;; set a flag that the opengl thread will use
-        (dosync (ref-set reload-shader true))))))
+        (reset! reload-shader true)))))
 
 (defn- start-watcher
   "create a watch for glsl shaders in the directory and return the global
   future atom for that watcher"
   [dir]
-  (swap! watcher-just-started (fn [x] true))
+  (reset! watcher-just-started true)
   (watcher/watcher
    [dir]
    (watcher/rate 100)
