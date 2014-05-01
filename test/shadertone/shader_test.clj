@@ -51,3 +51,27 @@ void main(void) {
           good-start (ask-user-tf "Did a pulsing orange fullscreen window appear?")
           _ (s/stop)]
       (is good-start))))
+
+(deftest error-str-test
+  (testing "Test error handling"
+    (let [shader-atom (atom "
+uniform float iGlobalTime;
+void main(void) {
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * noise * abs(sin(iGlobalTime));
+}")
+          _ (s/start shader-atom)
+          good-start (ask-user-tf "Did an error occur? That is expected, but we should draw a black screen and not throw an exception.")
+          _ (reset! shader-atom "
+uniform float iGlobalTime;
+void main(void) {
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iGlobalTime));
+}")
+          good-start2 (ask-user-tf "Did a pulsing window appear?")
+          _ (reset! shader-atom "
+uniform float iGlobalTime;
+void main(void) {
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * noise * abs(sin(iGlobalTime));
+}")
+          good-start3 (ask-user-tf "Did another error occur? That is expected, but we should just keep playing the pulsing window.")
+          _ (s/stop)]
+      (is (and good-start good-start2 good-start3)))))
