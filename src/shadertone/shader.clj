@@ -35,54 +35,56 @@
   [msg]
   (let [error (GL11/glGetError)
         error-string (str "OpenGL Error(" error "):" (enum-name error) ": " msg)]
-    (if (not (zero? error))
+    (if (not (zero? error)) ;; FIXME add global control on throwing exceptions
       (throw (Exception. error-string)))))
 
 ;; ======================================================================
 ;; State Variables
 ;; The globals atom is a map of state variables for use in the gl thread
-(defonce globals (atom {:active              :no  ;; :yes/:stopping/:no
-                        :shader-good         true ;; false in error condition
-                        :width               0
-                        :height              0
-                        :title               ""
-                        :display-sync-hz     60
-                        :start-time          0
-                        :last-time           0
-                        ;; mouse
-                        :mouse-clicked       false
-                        :mouse-pos-x         0
-                        :mouse-pos-y         0
-                        :mouse-ori-x         0
-                        :mouse-ori-y         0
-                        ;; geom ids
-                        :vbo-id              0
-                        :vertices-count      0
-                        ;; shader program
-                        :shader-filename     nil
-                        :shader-str-atom     (atom nil)
-                        :shader-str          ""
-                        :vs-id               0
-                        :fs-id               0
-                        :pgm-id              0
-                        ;; shader uniforms
-                        :i-resolution-loc    0
-                        :i-global-time-loc   0
-                        :i-channel-time-loc  0
-                        :i-mouse-loc         0
-                        :i-channel-loc       [0 0 0 0]
-                        :i-date-loc          0
-                        :channel-time-buffer (-> (BufferUtils/createFloatBuffer 4)
-                                                 (.put (float-array
-                                                        [0.0 0.0 0.0 0.0]))
-                                                 (.flip))
-                        ;; textures
-                        :tex-filenames       []
-                        :tex-ids             []
-                        :tex-types           [] ; :cubemap, :previous-frame
-                        ;; a user draw function
-                        :user-fn             nil
-                        }))
+(def default-globals-values
+  {:active              :no  ;; :yes/:stopping/:no
+   :width               0
+   :height              0
+   :title               ""
+   :display-sync-hz     60
+   :start-time          0
+   :last-time           0
+   ;; mouse
+   :mouse-clicked       false
+   :mouse-pos-x         0
+   :mouse-pos-y         0
+   :mouse-ori-x         0
+   :mouse-ori-y         0
+   ;; geom ids
+   :vbo-id              0
+   :vertices-count      0
+   ;; shader program
+   :shader-good         true ;; false in error condition
+   :shader-filename     nil
+   :shader-str-atom     (atom nil)
+   :shader-str          ""
+   :vs-id               0
+   :fs-id               0
+   :pgm-id              0
+   ;; shader uniforms
+   :i-resolution-loc    0
+   :i-global-time-loc   0
+   :i-channel-time-loc  0
+   :i-mouse-loc         0
+   :i-channel-loc       [0 0 0 0]
+   :i-date-loc          0
+   :channel-time-buffer (-> (BufferUtils/createFloatBuffer 4)
+                            (.put (float-array
+                                   [0.0 0.0 0.0 0.0]))
+                            (.flip))
+   ;; textures
+   :tex-filenames       []
+   :tex-ids             []
+   :tex-types           [] ; :cubemap, :previous-frame
+   ;; a user draw function
+   :user-fn             nil
+   })
+(defonce globals (atom default-globals-values))
 ;; The reload-shader ref communicates across the gl & watcher threads
 (defonce reload-shader (atom false))
 (defonce reload-shader-str (atom ""))
@@ -215,8 +217,11 @@
 (defn- load-shader
   [shader-str shader-type]
   (let [shader-id         (GL20/glCreateShader shader-type)
+        _ (except-gl-errors "@ load-shader glCreateShader ")
         _                 (GL20/glShaderSource shader-id shader-str)
+        _ (except-gl-errors "@ load-shader glShaderSource ")
         _                 (GL20/glCompileShader shader-id)
+        _ (except-gl-errors "@ load-shader glCompileShader ")
         gl-compile-status (GL20/glGetShaderi shader-id GL20/GL_COMPILE_STATUS)
         _ (except-gl-errors "@ end of let load-shader")]
     (when (== gl-compile-status GL11/GL_FALSE)
@@ -415,7 +420,7 @@
     (init-buffers)
     (init-textures)
     (init-shaders)
-    (when user-fn
+    (when (and (not (nil? user-fn)) (:shader-good @globals))
       (user-fn :init (:pgm-id @globals)))))
 
 (defn- try-reload-shader
@@ -628,6 +633,7 @@
       ;; just clear to prevent strobing awfulness
       (do
         (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
+        (except-gl-errors "@ bad-draw glClear ")
         (if @reload-shader
           (try-reload-shader))))))
 
@@ -832,7 +838,8 @@
    start-fullscreen for simpler usage."
   [mode shader-filename-or-str-atom textures title
    true-fullscreen? user-data user-fn display-sync-hz]
-  (let [is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
+  (let [_               (reset! globals default-globals-values)
+        is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
         shader-filename (if is-filename
                           shader-filename-or-str-atom)
         ;; Fix for issue 15.  Normalize the given shader-filename to the
