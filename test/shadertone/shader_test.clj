@@ -75,3 +75,31 @@ void main(void) {
           good-start3 (ask-user-tf "Did another error occur? That is expected, but we should just keep playing the pulsing window.")
           _ (s/stop)]
       (is (and good-start good-start2 good-start3)))))
+
+(deftest error-str-test2
+  (testing "Test error handling with uniforms"
+    (let [color (atom [1.0 0.5 0.0 1.0])
+          shader-atom (atom "
+uniform float iGlobalTime;
+//uniform vec4 iColor;
+void main(void) {
+  gl_FragColor = iColor * abs(sin(iGlobalTime));
+}")
+          _ (s/start shader-atom :user-data { "iColor" color})
+          good-start (ask-user-tf "Did an error occur? That is expected, but we should draw a black screen and not throw an exception.")
+          _ (reset! shader-atom "
+uniform float iGlobalTime;
+uniform vec4 iColor;
+void main(void) {
+  gl_FragColor = iColor * abs(sin(iGlobalTime));
+}")
+          good-start2 (ask-user-tf "Did a pulsing orange window appear?")
+          _ (reset! shader-atom "
+uniform float iGlobalTime;
+//uniform vec4 iColor;
+void main(void) {
+  gl_FragColor = iColor * abs(sin(iGlobalTime));
+}")
+          good-start3 (ask-user-tf "Did another error occur? That is expected, but we should just keep playing the pulsing window.")
+          _ (s/stop)]
+      (is (and good-start good-start2 good-start3)))))
