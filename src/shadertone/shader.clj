@@ -16,32 +16,9 @@
                              PixelFormat)))
 
 ;; ======================================================================
-;; some code cribbed from
-;; https://github.com/ztellman/penumbra/blob/master/src/penumbra/opengl/core.clj
-;; Causes errors in glGetError to throw an exception
-(def containers [GL11 GL12 GL13 GL15 GL20])
-(defn- get-fields [#^Class static-class]
-  (. static-class getFields))
-(defn- enum-name
-  "Takes the numeric value of a gl constant (i.e. GL_LINEAR), and gives the name"
-  [enum-value]
-  (if (= 0 enum-value)
-    "NONE"
-    (.getName
-     #^Field (some
-              #(if (= enum-value (.get #^Field % nil)) % nil)
-              (mapcat get-fields containers)))))
-(defn- except-gl-errors
-  [msg]
-  (let [error (GL11/glGetError)
-        error-string (str "OpenGL Error(" error "):" (enum-name error) ": " msg)]
-    (if (not (zero? error)) ;; FIXME add global control on throwing exceptions
-      (throw (Exception. error-string)))))
-
-;; ======================================================================
 ;; State Variables
 ;; The globals atom is a map of state variables for use in the gl thread
-(def default-globals-values
+(defonce default-globals-values
   {:active              :no  ;; :yes/:stopping/:no
    :width               0
    :height              0
@@ -85,7 +62,7 @@
    :user-fn             nil
    })
 (defonce globals (atom default-globals-values))
-;; The reload-shader ref communicates across the gl & watcher threads
+;; The reload-shader atom communicates across the gl & watcher threads
 (defonce reload-shader (atom false))
 (defonce reload-shader-str (atom ""))
 ;; Atom for the directory watcher future
@@ -93,6 +70,28 @@
 ;; Flag to help avoid reloading shader right after loading it for the
 ;; first time.
 (defonce watcher-just-started (atom true))
+(defonce throw-on-gl-error (atom true))
+
+;; ======================================================================
+;; code modified from
+;; https://github.com/ztellman/penumbra/blob/master/src/penumbra/opengl/core.clj
+(defn- get-fields [#^Class static-class]
+  (. static-class getFields))
+(defn- gl-enum-name
+  "Takes the numeric value of a gl constant (i.e. GL_LINEAR), and gives the name"
+  [enum-value]
+  (if (= 0 enum-value)
+    "NONE"
+    (.getName #^Field (some
+                       #(if (= enum-value (.get #^Field % nil)) % nil)
+                       (mapcat get-fields [GL11 GL12 GL13 GL15 GL20])))))
+(defn- except-gl-errors
+  [msg]
+  (let [error (GL11/glGetError)
+        error-string (str "OpenGL Error(" error "):"
+                          (gl-enum-name error) ": " msg)]
+    (if (and (not (zero? error)) throw-on-gl-error)
+      (throw (Exception. error-string)))))
 
 ;; ======================================================================
 (defn- fill-tex-filenames
@@ -906,3 +905,11 @@
      (let [mode (Display/getDisplayMode)]
        (undecorate-display!)
        (start-shader-display mode shader-filename-or-str-atom textures "" false user-data user-fn display-sync-hz)))
+
+(defn throw-exceptions-on-gl-errors
+  "When v is true, throw exceptions when glGetError() returns
+  non-zero.  This is the default setting.  When v is false, do not
+  throw the exception.  Perhaps setting to false during a performance
+  will allow you to avoid over-agressive exceptions.  Leave this true
+  otherwise."  [v]
+  (reset! throw-on-gl-error v))
