@@ -17,8 +17,8 @@
 
 ;; ======================================================================
 ;; State Variables
-;; The globals atom is a map of state variables for use in the gl thread
-(defonce default-globals-values
+;; a map of state variables for use in the gl thread
+(defonce default-state-values
   {:active              :no  ;; :yes/:stopping/:no
    :width               0
    :height              0
@@ -61,7 +61,6 @@
    ;; a user draw function
    :user-fn             nil
    })
-(defonce globals (atom default-globals-values))
 ;; The reload-shader atom communicates across the gl & watcher threads
 (defonce reload-shader (atom false))
 (defonce reload-shader-str (atom ""))
@@ -111,8 +110,8 @@
 (defn- slurp-fs
   "do whatever it takes to modify shadertoy fragment shader source to
   be useable"
-  [filename]
-  (let [{:keys [tex-types]} @globals
+  [locals filename]
+  (let [{:keys [tex-types]} @locals
         ;;file-str (slurp filename)
         file-str (str "#version 120\n"
                       "uniform vec3      iResolution;\n"
@@ -148,7 +147,7 @@
    attempted if the display-mode is compatible. See display-modes for a
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
-  [display-mode title shader-filename shader-str-atom tex-filenames true-fullscreen? user-fn display-sync-hz]
+  [locals display-mode title shader-filename shader-str-atom tex-filenames true-fullscreen? user-fn display-sync-hz]
   (let [width               (.getWidth display-mode)
         height              (.getHeight display-mode)
         pixel-format        (PixelFormat.)
@@ -156,7 +155,7 @@
         current-time-millis (System/currentTimeMillis)
         tex-filenames       (fill-tex-filenames tex-filenames)
         tex-types           (map get-texture-type tex-filenames)]
-    (swap! globals
+    (swap! locals
            assoc
            :active          :yes
            :width           width
@@ -173,8 +172,8 @@
     ;; slurp-fs requires :tex-types, so we need a 2 pass setup
     (let [shader-str (if (nil? shader-filename)
                        @shader-str-atom
-                       (slurp-fs (:shader-filename @globals)))]
-      (swap! globals assoc :shader-str shader-str)
+                       (slurp-fs locals (:shader-filename @locals)))]
+      (swap! locals assoc :shader-str shader-str)
       (Display/setDisplayMode display-mode)
       (when true-fullscreen?
         (Display/setFullscreen true))
@@ -184,7 +183,7 @@
       (Display/create pixel-format context-attributes))))
 
 (defn- init-buffers
-  []
+  [locals]
   (let [vertices            (float-array
                              [-1.0 -1.0 0.0 1.0
                                1.0 -1.0 0.0 1.0
@@ -202,7 +201,7 @@
                                            vertices-buffer
                                            GL15/GL_STATIC_DRAW)
         _ (except-gl-errors "@ end of init-buffers")]
-    (swap! globals
+    (swap! locals
            assoc
            :vbo-id vbo-id
            :vertices-count vertices-count)))
@@ -229,13 +228,13 @@
     [gl-compile-status shader-id]))
 
 (defn- init-shaders
-  []
+  [locals]
   (let [[ok? vs-id] (load-shader vs-shader GL20/GL_VERTEX_SHADER)
         _           (assert (== ok? GL11/GL_TRUE)) ;; something is really wrong if our vs is bad
-        _           (if (nil? (:shader-filename @globals))
+        _           (if (nil? (:shader-filename @locals))
                       (println "Loading shader from string")
-                      (println "Loading shader from file:" (:shader-filename @globals)))
-        [ok? fs-id] (load-shader (:shader-str @globals) GL20/GL_FRAGMENT_SHADER)]
+                      (println "Loading shader from file:" (:shader-filename @locals)))
+        [ok? fs-id] (load-shader (:shader-str @locals) GL20/GL_FRAGMENT_SHADER)]
     (if (== ok? GL11/GL_TRUE)
       (let [pgm-id                (GL20/glCreateProgram)
             _ (except-gl-errors "@ let init-shaders glCreateProgram")
@@ -262,7 +261,7 @@
             i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
             _ (except-gl-errors "@ end of let init-shaders")
             ]
-        (swap! globals
+        (swap! locals
                assoc
                :shader-good true
                :vs-id vs-id
@@ -275,7 +274,7 @@
                :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
                :i-date-loc i-date-loc))
       ;; we didn't load the shader, don't be drawing
-      (swap! globals assoc :shader-good false))))
+      (swap! locals assoc :shader-good false))))
 
 (defn- buffer-swizzle-0123-1230
   "given a ARGB pixel array, swizzle it to be RGBA.  Or, ABGR to BGRA"
@@ -406,25 +405,25 @@
          tex-id))))
 
 (defn- init-textures
-  []
-  (let [tex-ids (map load-texture (:tex-filenames @globals))]
-    (swap! globals assoc :tex-ids tex-ids)))
+  [locals]
+  (let [tex-ids (map load-texture (:tex-filenames @locals))]
+    (swap! locals assoc :tex-ids tex-ids)))
 
 (defn- init-gl
-  []
-  (let [{:keys [width height user-fn]} @globals]
+  [locals]
+  (let [{:keys [width height user-fn]} @locals]
     ;;(println "OpenGL version:" (GL11/glGetString GL11/GL_VERSION))
     (GL11/glClearColor 0.0 0.0 0.0 0.0)
     (GL11/glViewport 0 0 width height)
-    (init-buffers)
-    (init-textures)
-    (init-shaders)
-    (when (and (not (nil? user-fn)) (:shader-good @globals))
-      (user-fn :init (:pgm-id @globals)))))
+    (init-buffers locals)
+    (init-textures locals)
+    (init-shaders locals)
+    (when (and (not (nil? user-fn)) (:shader-good @locals))
+      (user-fn :init (:pgm-id @locals)))))
 
 (defn- try-reload-shader
-  []
-  (let [{:keys [vs-id fs-id pgm-id shader-filename user-fn]} @globals
+  [locals]
+  (let [{:keys [vs-id fs-id pgm-id shader-filename user-fn]} @locals
         vs-id (if (= vs-id 0)
                 (let [[ok? vs-id] (load-shader vs-shader GL20/GL_VERTEX_SHADER)
                       _ (assert (== ok? GL11/GL_TRUE))]
@@ -432,12 +431,12 @@
                 vs-id)
         fs-shader       (if (nil? shader-filename)
                           @reload-shader-str
-                          (slurp-fs shader-filename))
+                          (slurp-fs locals shader-filename))
         [ok? new-fs-id] (load-shader fs-shader GL20/GL_FRAGMENT_SHADER)
         _               (reset! reload-shader false)]
     (if (== ok? GL11/GL_FALSE)
       ;; we didn't reload a good shader. Go back to the old one if possible
-      (when (:shader-good @globals)
+      (when (:shader-good @locals)
         (GL20/glUseProgram pgm-id)
         (except-gl-errors "@ try-reload-shader useProgram1"))
       ;; the load shader went well, keep going...
@@ -477,7 +476,7 @@
               (GL20/glDetachShader pgm-id fs-id)
               (GL20/glDeleteShader fs-id))
             (except-gl-errors "@ try-reload-shader detach/delete")
-            (swap! globals
+            (swap! locals
                    assoc
                    :shader-good true
                    :fs-id new-fs-id
@@ -491,7 +490,7 @@
                    :shader-str fs-shader)))))))
 
 (defn- draw
-  []
+  [locals]
   (let [{:keys [width height i-resolution-loc
                 start-time last-time i-global-time-loc
                 i-date-loc
@@ -504,7 +503,7 @@
                 channel-time-buffer
                 old-pgm-id old-fs-id
                 tex-ids tex-types
-                user-fn]} @globals
+                user-fn]} @locals
         cur-time    (/ (- last-time start-time) 1000.0)
         cur-date    (Calendar/getInstance)
         cur-year    (.get cur-date Calendar/YEAR)         ;; four digit year
@@ -514,7 +513,7 @@
                        (* (.get cur-date Calendar/MINUTE) 60.0)
                        (.get cur-date Calendar/SECOND))]
     (if @reload-shader
-      (try-reload-shader)         ; this must call glUseProgram
+      (try-reload-shader locals)         ; this must call glUseProgram
       (GL20/glUseProgram pgm-id)) ; else, normal path...
 
     (except-gl-errors "@ draw before clear")
@@ -600,10 +599,10 @@
     (except-gl-errors "@ draw after copy")))
 
 (defn- update
-  []
+  [locals]
   (let [{:keys [width height last-time
                 mouse-pos-x mouse-pos-y
-                mouse-clicked mouse-ori-x mouse-ori-y]} @globals
+                mouse-clicked mouse-ori-x mouse-ori-y]} @locals
         cur-time (System/currentTimeMillis)
         cur-mouse-clicked (Mouse/isButtonDown 0)
         mouse-down-event (and cur-mouse-clicked (not mouse-clicked))
@@ -619,7 +618,7 @@
                           (if cur-mouse-clicked
                             mouse-ori-y
                             (- (Math/abs mouse-ori-y))))]
-    (swap! globals
+    (swap! locals
            assoc
            :last-time cur-time
            :mouse-clicked cur-mouse-clicked
@@ -627,18 +626,18 @@
            :mouse-pos-y cur-mouse-pos-y
            :mouse-ori-x cur-mouse-ori-x
            :mouse-ori-y cur-mouse-ori-y)
-    (if (:shader-good @globals)
-      (draw)
+    (if (:shader-good @locals)
+      (draw locals)
       ;; just clear to prevent strobing awfulness
       (do
         (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
         (except-gl-errors "@ bad-draw glClear ")
         (if @reload-shader
-          (try-reload-shader))))))
+          (try-reload-shader locals))))))
 
 (defn- destroy-gl
-  []
-  (let [{:keys [pgm-id vs-id fs-id vbo-id user-fn]} @globals]
+  [locals]
+  (let [{:keys [pgm-id vs-id fs-id vbo-id user-fn]} @locals]
     ;; Delete any user state
     (when user-fn
       (user-fn :destroy pgm-id))
@@ -654,17 +653,17 @@
     (GL15/glDeleteBuffers vbo-id)))
 
 (defn- run-thread
-  [mode shader-filename shader-str-atom tex-filenames title true-fullscreen? user-fn display-sync-hz]
-  (init-window mode title shader-filename shader-str-atom tex-filenames true-fullscreen? user-fn display-sync-hz)
-  (init-gl)
-  (while (and (= :yes (:active @globals))
+  [locals mode shader-filename shader-str-atom tex-filenames title true-fullscreen? user-fn display-sync-hz]
+  (init-window locals mode title shader-filename shader-str-atom tex-filenames true-fullscreen? user-fn display-sync-hz)
+  (init-gl locals)
+  (while (and (= :yes (:active @locals))
               (not (Display/isCloseRequested)))
-    (update)
+    (update locals)
     (Display/update)
-    (Display/sync (:display-sync-hz @globals)))
-  (destroy-gl)
+    (Display/sync (:display-sync-hz @locals)))
+  (destroy-gl locals)
   (Display/destroy)
-  (swap! globals assoc :active :no))
+  (swap! locals assoc :active :no))
 
 (defn- good-tex-count
   [textures]
@@ -717,27 +716,28 @@
 
 ;; watch the shader directory & reload the current shader if it changes.
 (defn- if-match-reload-shader
-  [files]
+  [shader-filename files]
   (if @watcher-just-started
     ;; allow first, automatic call to pass unnoticed
     (reset! watcher-just-started false)
     ;; otherwise do the reload check
     (doseq [f files]
-      (when (= (.getPath f) (:shader-filename @globals))
+      (when (= (.getPath f) shader-filename)
         ;; set a flag that the opengl thread will use
         (reset! reload-shader true)))))
 
 (defn- start-watcher
   "create a watch for glsl shaders in the directory and return the global
   future atom for that watcher"
-  [dir]
-  (reset! watcher-just-started true)
-  (watcher/watcher
-   [dir]
-   (watcher/rate 100)
-   (watcher/file-filter watcher/ignore-dotfiles)
-   (watcher/file-filter (watcher/extensions :glsl))
-   (watcher/on-change if-match-reload-shader)))
+  [shader-filename]
+  (let [dir (.getParent (File. shader-filename))]
+    (reset! watcher-just-started true)
+    (watcher/watcher
+     [dir]
+     (watcher/rate 100)
+     (watcher/file-filter watcher/ignore-dotfiles)
+     (watcher/file-filter (watcher/extensions :glsl))
+     (watcher/on-change (partial if-match-reload-shader shader-filename)))))
 
 (defn- stop-watcher
   "given a watcher-future f, put a stop to it"
@@ -811,33 +811,38 @@
   []
   (System/setProperty "org.lwjgl.opengl.Window.undecorated" "false"))
 
+;; FIXME make a list of windows. if one window, use that one, if list, return error
 (defn active?
-  "Returns true if the shader display is currently running"
-  []
-  (= :yes (:active @globals)))
+  "Returns true if the shader display associated with locals is currently running"
+  [locals]
+  (= :yes (:active @locals)))
 
+;; FIXME make a list of windows. if one window, use that one, if list, return error
 (defn inactive?
-  "Returns true if the shader display is completely done running."
-  []
-  (= :no (:active @globals)))
+  "Returns true if the shader display associated with locals is completely done running."
+  [locals]
+  (= :no (:active @locals)))
 
+;; FIXME make a list of windows. if one window, use that one, if list, return error
 (defn stop
-  "Stop and destroy the current shader display. Blocks the current
-   thread until completed."
-  []
-  (when (active?)
-    (swap! globals assoc :active :stopping)
-    (while (not (inactive?))
+  "Stop and destroy the shader display associated with locals. Blocks
+   until completed."
+  [locals]
+  (when (active? locals)
+    (swap! locals assoc :active :stopping)
+    (while (not (inactive? locals))
       (Thread/sleep 100)))
-  (remove-watch (:shader-str-atom @globals) :shader-str-watch)
+  (remove-watch (:shader-str-atom @locals) :shader-str-watch)
   (stop-watcher @watcher-future))
 
+;; FIXME make a list of windows.
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
-   start-fullscreen for simpler usage."
-  [mode shader-filename-or-str-atom textures title
-   true-fullscreen? user-data user-fn display-sync-hz]
-  (let [_               (reset! globals default-globals-values)
+   start-fullscreen for simpler usage.  Return locals state for use in
+   future calls."
+  [mode shader-filename-or-str-atom textures title true-fullscreen?
+   user-data user-fn display-sync-hz]
+  (let [locals          (atom default-state-values)
         is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
         shader-filename (if is-filename
                           shader-filename-or-str-atom)
@@ -854,29 +859,32 @@
                           @shader-str-atom)]
     (when (sane-user-inputs mode shader-filename shader-str textures title true-fullscreen? user-fn)
       ;; stop the current shader
-      (stop)
+      (stop locals)
       ;; start the watchers
       (if is-filename
         (when-not (nil? shader-filename)
           (swap! watcher-future
-                 (fn [x] (start-watcher (.getParent (File. shader-filename))))))
+                 (fn [x] (start-watcher shader-filename))))
         (add-watch shader-str-atom :shader-str-watch watch-shader-str-atom))
       ;; set user data
       (reset! shader-user-data user-data)
       ;; start the requested shader
       (.start (Thread.
-               (fn [] (run-thread mode
+               (fn [] (run-thread locals
+                                 mode
                                  shader-filename
                                  shader-str-atom
                                  textures
                                  title
                                  true-fullscreen?
                                  user-fn
-                                 display-sync-hz)))))))
+                                 display-sync-hz)))))
+    locals))
 
 (defn start
   "Start a new shader display. Forces the display window to be
-   decorated (i.e. have a title bar)."
+   decorated (i.e. have a title bar).  Return locals state for use in
+   future calls."
   [shader-filename-or-str-atom
    &{:keys [width height title display-sync-hz
             textures user-data user-fn]
@@ -892,10 +900,11 @@
     (start-shader-display mode shader-filename-or-str-atom textures title false user-data user-fn display-sync-hz)))
 
 (defn start-fullscreen
-  "Start a new shader display in pseudo fullscreen mode. This creates a
-   new borderless window which is the size of the current
-   resolution. There are therefore no OS controls for closing the shader
-   window. Use (stop) to close things manually. "
+  "Start a new shader display in pseudo fullscreen mode. This creates
+   a new borderless window which is the size of the current
+   resolution. There are therefore no OS controls for closing the
+   shader window. Use (stop) to close things manually.  Return locals
+   state for use in future calls."
   [shader-filename-or-str-atom
    &{:keys [display-sync-hz textures user-data user-fn]
      :or {display-sync-hz 60
