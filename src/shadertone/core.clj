@@ -32,16 +32,16 @@
             (* t 999))))) 3e3))))
 
 (defn -main [& args]
-  (let [rf (red-frik-329311535723839489)
-        ss (t/start "examples/redFrik.glsl"
-                    :width 1280 :height 720
-                    :user-data {"t0" (atom {:synth rf :tap "t0"})})]
+  (let [rf (red-frik-329311535723839489)]
+    (t/start "examples/redFrik.glsl"
+             :width 1280 :height 720
+             :user-data {"t0" (atom {:synth rf :tap "t0"})})
     (println "Playing a 60 second demo inspired by")
     (println "https://twitter.com/redFrik/status/329311535723839489\nEnjoy...")
     (Thread/sleep (* 60 1000))
     (println "Done.")
     (ctl rf :gate 0) ;; fade out
     (Thread/sleep (* 3 1000))
-    (t/stop ss)
+    (t/stop)
     (stop)
     (System/exit 0)))

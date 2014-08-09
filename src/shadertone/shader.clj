@@ -61,6 +61,12 @@
    ;; a user draw function
    :user-fn             nil
    })
+
+;; GLOBAL STATE ATOMS
+;; Tried to get rid of this atom, but LWJGL is limited to only
+;; one window.  So, we just keep a single atom containing the
+;; current window state here.
+(defonce the-window-state (atom default-state-values))
 ;; The reload-shader atom communicates across the gl & watcher threads
 (defonce reload-shader (atom false))
 (defonce reload-shader-str (atom ""))
@@ -811,38 +817,33 @@
   []
   (System/setProperty "org.lwjgl.opengl.Window.undecorated" "false"))
 
-;; FIXME make a list of windows. if one window, use that one, if list, return error
 (defn active?
-  "Returns true if the shader display associated with locals is currently running"
-  [locals]
-  (= :yes (:active @locals)))
+  "Returns true if the shader display is currently running"
+  []
+  (= :yes (:active @the-window-state)))
 
-;; FIXME make a list of windows. if one window, use that one, if list, return error
 (defn inactive?
-  "Returns true if the shader display associated with locals is completely done running."
-  [locals]
-  (= :no (:active @locals)))
+  "Returns true if the shader display is completely done running."
+  []
+  (= :no (:active @the-window-state)))
 
-;; FIXME make a list of windows. if one window, use that one, if list, return error
 (defn stop
-  "Stop and destroy the shader display associated with locals. Blocks
-   until completed."
-  [locals]
-  (when (active? locals)
-    (swap! locals assoc :active :stopping)
-    (while (not (inactive? locals))
+  "Stop and destroy the shader display. Blocks until completed."
+  []
+  (when (active?)
+    (swap! the-window-state assoc :active :stopping)
+    (while (not (inactive?))
       (Thread/sleep 100)))
-  (remove-watch (:shader-str-atom @locals) :shader-str-watch)
+  (remove-watch (:shader-str-atom @the-window-state) :shader-str-watch)
   (stop-watcher @watcher-future))
 
-;; FIXME make a list of windows.
 (defn start-shader-display
   "Start a new shader display with the specified mode. Prefer start or
-   start-fullscreen for simpler usage.  Return locals state for use in
-   future calls."
+   start-fullscreen for simpler usage."
   [mode shader-filename-or-str-atom textures title true-fullscreen?
    user-data user-fn display-sync-hz]
-  (let [locals          (atom default-state-values)
+  (let [;; here we set a global window-state instead of creating a new one
+        _               (reset! the-window-state default-state-values)
         is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
         shader-filename (if is-filename
                           shader-filename-or-str-atom)
@@ -859,7 +860,7 @@
                           @shader-str-atom)]
     (when (sane-user-inputs mode shader-filename shader-str textures title true-fullscreen? user-fn)
       ;; stop the current shader
-      (stop locals)
+      (stop)
       ;; start the watchers
       (if is-filename
         (when-not (nil? shader-filename)
@@ -870,7 +871,7 @@
       (reset! shader-user-data user-data)
       ;; start the requested shader
       (.start (Thread.
-               (fn [] (run-thread locals
+               (fn [] (run-thread the-window-state
                                  mode
                                  shader-filename
                                  shader-str-atom
@@ -878,13 +879,11 @@
                                  title
                                  true-fullscreen?
                                  user-fn
-                                 display-sync-hz)))))
-    locals))
+                                 display-sync-hz)))))))
 
 (defn start
   "Start a new shader display. Forces the display window to be
-   decorated (i.e. have a title bar).  Return locals state for use in
-   future calls."
+   decorated (i.e. have a title bar)."
   [shader-filename-or-str-atom
    &{:keys [width height title display-sync-hz
             textures user-data user-fn]
@@ -903,8 +902,7 @@
   "Start a new shader display in pseudo fullscreen mode. This creates
    a new borderless window which is the size of the current
    resolution. There are therefore no OS controls for closing the
-   shader window. Use (stop) to close things manually.  Return locals
-   state for use in future calls."
+   shader window. Use (stop) to close things manually."
   [shader-filename-or-str-atom
    &{:keys [display-sync-hz textures user-data user-fn]
      :or {display-sync-hz 60

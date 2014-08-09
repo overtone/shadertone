@@ -204,7 +204,7 @@
 ;; Public API
 (defn start
   "Start a new shader display.  Pass in optional user-data and user-fn
-  for custom control.  Return locals state for use in future calls."
+  for custom control."
   [shader-filename-or-str-atom
    &{:keys [width height title textures user-data user-fn]
      :or {width      600
@@ -228,8 +228,7 @@
 
 (defn start-fullscreen
   "Start a new fullscreen shader display.  Pass in optional user-data
-  and user-fn for custom control.  Return locals state for use in
-  future calls."
+  and user-fn for custom control."
   [shader-filename-or-str-atom
    &{:keys [textures user-data user-fn]
      :or {textures   []
@@ -245,7 +244,6 @@
                         :textures   textures
                         :user-fn    user-fn)))
 
-;; FIXME make a list of windows. if one window, use that one, if list, return error
 (defn stop
-  [locals]
-  (s/stop locals))
+  []
+  (s/stop))
