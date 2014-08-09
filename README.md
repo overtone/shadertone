@@ -43,16 +43,33 @@ I've created a few screencast demos that you can watch:
 * [A quick teaser](https://www.youtube.com/watch?v=kyL3xc7MzR0) from the [disco example](https://github.com/overtone/shadertone/blob/master/examples/02demo_disco.clj)
 * [Video preview](https://www.youtube.com/watch?v=UMg8Td5Gqhk) showing the very early stages of shadertone.
 
-[Meta-eX](http://meta-ex.com/) has used Shadertone in performance.  Here are a vew videos from their May, 2013 Kiev #hotcode conference performance that show how Shadertone can be used:
-[after party 1](http://vimeo.com/67487486), [main conference](http://vimeo.com/67487485), [after party 1](http://www.youtube.com/watch?v=CjFCSTQbJx0),  [after party 2](http://www.youtube.com/watch?v=CjFCSTQbJx0).
+[Meta-eX](http://meta-ex.com/) has used Shadertone in live
+performance.  Here are a vew videos from their May, 2013 Kiev #hotcode
+conference performance that show how Shadertone can be used: [after
+party 1](http://vimeo.com/67487486), [main
+conference](http://vimeo.com/67487485), [after party
+1](http://www.youtube.com/watch?v=CjFCSTQbJx0), [after party
+2](http://www.youtube.com/watch?v=CjFCSTQbJx0).  Latest news & videos
+can always be found at [their website](http://meta-ex.com)
 
-If you're interested, here's [the original announcement](https://groups.google.com/forum/?fromgroups=#!topic/overtone/7bQSJUUviBw) on the Overtone Google Group.
+[Repl Electric](http://www.repl-electric.com/) has also used
+Shadertone in performance.  Here is a wonderful recreation of ["The
+Stars" livecoded on Vimeo](http://vimeo.com/95988263).
+
+If you're interested, here's [the original
+announcement](https://groups.google.com/forum/?fromgroups=#!topic/overtone/7bQSJUUviBw)
+on the Overtone Google Group.
 
 I hope this library allows you to create some happiness.  Enjoy!
 
 ## Usage
 
-The library is just coming together, so expect change.  There are two main ways to use the code.  If you want the latest code or are just exploring what shadertone can do, you should clone the repo from github.  But, if you have a project idea and want to use shadertone as part of that project, you can specify the current version in your Leiningen project.clj to download the library from clojars.
+The library is just coming together, so expect change.  There are two
+main ways to use the code.  If you want the latest code or are just
+exploring what shadertone can do, you should clone the repo from
+github.  But, if you have a project idea and want to use shadertone as
+part of that project, you can specify the current version in your
+Leiningen project.clj to download the library from clojars.
 
 ### Option 1: clone this repository
 
@@ -166,7 +183,7 @@ Via a call like this:
 
 ##### Synth Inputs
 
-__New in 0.2.0__, you can `tap` a synth value and easily communicate that
+You can `tap` a synth value and easily communicate that
 value to your GLSL fragment shader.  See the "vvv" synth example in
 the 00_demo_intro_tour.clj demo and also the core.clj usage.
 
@@ -215,7 +232,7 @@ could be useful for other interactive ideas.
 
 ### Lisp-like GLSL
 
-__New in 0.2.0__, you can program your GLSL in a lisp-like language.  It is a simple, straight translation
+You can program your GLSL in a lisp-like language.  It is a simple, straight translation
 layer from lisp to a GLSL string.  For those hoping for Clojure instead of lisp,
 I welcome your suggestions and help, but a Clojure-to-C compiler was way too much work for me at this time.
 
@@ -254,7 +271,27 @@ lisp into a string for passing to the `start` function.
 * return value;
     `(return <statement>)`
 
+### Reading Pixels from the Framebuffer
+
+__NEW in 0.2.4__, you can read back a pixel value from your frame
+either via `(shadertone.shader/pixel)` function or by accessing the
+`@shadertone.shader/pixel-value` atom directly.  With this feature,
+your fragment-shader could control your synths!  Thanks to Circu Vitu
+on the Google Group for this idea.
+
+Enable this feature via `(pixel-read-enable! x y)` where x and y are
+valid locations within your window.  Be careful as there is no error
+checking here.
+
+Disable this access via `(pixel-read-disable!)`
+
 ## Changes
+
+* __0.2.4 - In progress__
+
+  * Enhancement: [Issue #18](https://github.com/overtone/shadertone/issues/18) - Add pixel read feature.  Thanks to Circu Vitu.
+  * Enhancement: [Issue #14](https://github.com/overtone/shadertone/issues/14) - No external change since LWJGL is limited to one window, but code has been improved by reducing the use of global state a bit.
+  * Enhancement: [Issue #23](https://github.com/overtone/shadertone/issues/23) - Generally improve error handling & robustness.  Thanks to [josephwilk](https://github.com/josephwilk)
 
 * __0.2.3 - Released Mar 8, 2014__
 

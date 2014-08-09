@@ -31,6 +31,27 @@ void main(void) {
           _ (s/stop)]
       (is good-start))))
 
+(deftest pixel-read-test
+  (testing "Simple pixel-read test"
+    (let [color (atom [1.0 (/ 128.0 255.0) 0.0 1.0])
+          _ (s/start (atom "
+uniform vec4 iColor;
+void main(void) {
+  gl_FragColor = iColor;
+}")
+                     :user-data { "iColor" color})
+          _ (s/pixel-read-enable! 10 10)
+          _ (Thread/sleep 1000)
+          rgb1 (s/pixel)
+          rgb2 (deref s/pixel-value)
+          _ (s/pixel-read-disable!)
+          _ (Thread/sleep 100)
+          rgb3 (s/pixel)
+          _ (s/stop)]
+      (is (= (vec (take 3 @color)) rgb1))
+      (is (= (vec (take 3 @color)) rgb2))
+      (is (= [0.0 0.0 0.0] rgb3)))))
+
 (deftest simple-fullscreen-file-test
   (testing "Simple fullscreen program file acceptance test"
     (let [_ (s/start-fullscreen "test/shadertone/simple.glsl" :textures ["textures/wall.png"])

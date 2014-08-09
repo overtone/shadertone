@@ -60,6 +60,13 @@
    :tex-types           [] ; :cubemap, :previous-frame
    ;; a user draw function
    :user-fn             nil
+   ;; pixel read
+   :pixel-read-enable   false
+   :pixel-read-pos-x    0
+   :pixel-read-pos-y    0
+   :pixel-read-data      (-> (BufferUtils/createByteBuffer 3)
+                            (.put (byte-array (map byte [0 0 0])))
+                            (.flip))
    })
 
 ;; GLOBAL STATE ATOMS
@@ -76,6 +83,8 @@
 ;; first time.
 (defonce watcher-just-started (atom true))
 (defonce throw-on-gl-error (atom true))
+;;
+(defonce pixel-value (atom [0.0 0.0 0.0]))
 
 ;; ======================================================================
 ;; code modified from
@@ -495,6 +504,13 @@
                    :i-date-loc i-date-loc
                    :shader-str fs-shader)))))))
 
+(defn- get-pixel-value
+  [rgb-bytes]
+  (let [rf (/ (float (int (bit-and 0xFF (.get rgb-bytes 0)))) 255.0)
+        gf (/ (float (int (bit-and 0xFF (.get rgb-bytes 1)))) 255.0)
+        bf (/ (float (int (bit-and 0xFF (.get rgb-bytes 2)))) 255.0)]
+    [rf gf bf]))
+
 (defn- draw
   [locals]
   (let [{:keys [width height i-resolution-loc
@@ -509,7 +525,10 @@
                 channel-time-buffer
                 old-pgm-id old-fs-id
                 tex-ids tex-types
-                user-fn]} @locals
+                user-fn
+                pixel-read-enable
+                pixel-read-pos-x pixel-read-pos-y
+                pixel-read-data]} @locals
         cur-time    (/ (- last-time start-time) 1000.0)
         cur-date    (Calendar/getInstance)
         cur-year    (.get cur-date Calendar/YEAR)         ;; four digit year
@@ -601,8 +620,16 @@
         (GL11/glBindTexture GL11/GL_TEXTURE_2D (nth tex-ids i))
         (GL11/glCopyTexImage2D GL11/GL_TEXTURE_2D 0 GL11/GL_RGBA8 0 0 width height 0)
         (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)))
+    (except-gl-errors "@ draw after copy")
 
-    (except-gl-errors "@ draw after copy")))
+    ;; read a pixel value
+    (when pixel-read-enable
+      (GL11/glReadPixels pixel-read-pos-x pixel-read-pos-y
+                        1 1
+                        GL11/GL_RGB GL11/GL_UNSIGNED_BYTE
+                        pixel-read-data)
+      (except-gl-errors "@ draw after pixel read")
+      (reset! pixel-value (get-pixel-value pixel-read-data)))))
 
 (defn- update
   [locals]
@@ -634,7 +661,7 @@
            :mouse-ori-y cur-mouse-ori-y)
     (if (:shader-good @locals)
       (draw locals)
-      ;; just clear to prevent strobing awfulness
+      ;; else clear to prevent strobing awfulness
       (do
         (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
         (except-gl-errors "@ bad-draw glClear ")
@@ -913,10 +940,38 @@
        (undecorate-display!)
        (start-shader-display mode shader-filename-or-str-atom textures "" false user-data user-fn display-sync-hz)))
 
-(defn throw-exceptions-on-gl-errors
+(defn throw-exceptions-on-gl-errors!
   "When v is true, throw exceptions when glGetError() returns
   non-zero.  This is the default setting.  When v is false, do not
   throw the exception.  Perhaps setting to false during a performance
   will allow you to avoid over-agressive exceptions.  Leave this true
   otherwise."  [v]
   (reset! throw-on-gl-error v))
+
+(defn pixel-read-enable!
+  "Enable reading a pixel each frame from location x,y.  Be sure x,y
+   are valid or things may crash!  Results are available via the
+   function (pixel) and via the atom @pixel-value"
+  [x y]
+  (swap! the-window-state assoc
+         :pixel-read-enable true
+         :pixel-read-pos-x  x
+         :pixel-read-pos-y  y)
+  nil)
+
+(defn pixel-read-disable!
+  "Disable reading pixel values each frame."
+  []
+  (swap! the-window-state assoc
+         :pixel-read-enable false)
+  nil)
+
+(defn pixel
+  "Return the data that was read from the currently drawn frame at the
+  x,y location specified in the (pixel-read-enable! x y) call.  When
+  enabled, a [red green blue] vector of floating point [0.0,1.0]
+  values is returned.  Otherwise, [0.0 0.0 0.0] is returned."
+  []
+  (if (:pixel-read-enable @the-window-state)
+    (get-pixel-value (:pixel-read-data @the-window-state))
+    [0.0 0.0 0.0]))
