@@ -276,7 +276,7 @@ lisp into a string for passing to the `start` function.
 __NEW in 0.2.4__, you can read back a pixel value from your frame
 either via `(shadertone.shader/pixel)` function or by accessing the
 `@shadertone.shader/pixel-value` atom directly.  With this feature,
-your fragment-shader could control your synths!  Thanks to Circu Vitu
+your fragment-shader could control your synths!  Thanks to Circu Virtu
 on the Google Group for this idea.
 
 Enable this feature via `(pixel-read-enable! x y)` where x and y are
