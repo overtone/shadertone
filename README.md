@@ -1,3 +1,4 @@
+![HeaderImage](https://github.com/overtone/shadertone/raw/master/readme_header.jpg)
                                         __              __          __
                                   _____/ /_  ____ _____/ /__  _____/ /_____  ____  ___
                                  / ___/ __ \/ __ `/ __  / _ \/ ___/ __/ __ \/ __ \/ _ \
