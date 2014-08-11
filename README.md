@@ -120,6 +120,7 @@ shader.
 uniform vec3      iResolution;     // viewport resolution (in pixels)
 uniform float     iGlobalTime;     // shader playback time (in seconds)
 uniform float     iChannelTime[4]; // channel playback time (in seconds)
+uniform vec3      iChannelResolution[4]; // channel width, height, 1
 uniform vec4      iMouse;          // mouse pixel coords. xy: current (if MLB down), zw: click
 uniform samplerXX iChannel0..3;    // input channel. XX = 2D/Cube
 uniform vec4      iDate;           // (year, month, day, time in seconds)
@@ -291,7 +292,8 @@ Disable this access via `(pixel-read-disable!)`
 
 * __0.2.4 - In progress__
 
-  * Enhancement: [Issue #18](https://github.com/overtone/shadertone/issues/18) - Add pixel read feature.  Thanks to Circu Vitu.
+  * Enhancement: [Issue #16](https://github.com/overtone/shadertone/issues/16) - Add iChannelResolution.
+  * Enhancement: [Issue #18](https://github.com/overtone/shadertone/issues/18) - Add pixel read feature.  Thanks to Circu Virtu.
   * Enhancement: [Issue #14](https://github.com/overtone/shadertone/issues/14) - No external change since LWJGL is limited to one window, but code has been improved by reducing the use of global state a bit.
   * Enhancement: [Issue #23](https://github.com/overtone/shadertone/issues/23) - Generally improve error handling & robustness.  Thanks to [josephwilk](https://github.com/josephwilk)
 
