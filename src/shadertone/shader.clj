@@ -49,10 +49,18 @@
    :i-channel-time-loc  0
    :i-mouse-loc         0
    :i-channel-loc       [0 0 0 0]
+   :i-channel-res-loc   0
    :i-date-loc          0
    :channel-time-buffer (-> (BufferUtils/createFloatBuffer 4)
                             (.put (float-array
                                    [0.0 0.0 0.0 0.0]))
+                            (.flip))
+   :channel-res-buffer (-> (BufferUtils/createFloatBuffer (* 3 4))
+                            (.put (float-array
+                                   [0.0 0.0 0.0
+                                    0.0 0.0 0.0
+                                    0.0 0.0 0.0
+                                    0.0 0.0 0.0]))
                             (.flip))
    ;; textures
    :tex-filenames       []
@@ -132,6 +140,7 @@
                       "uniform vec3      iResolution;\n"
                       "uniform float     iGlobalTime;\n"
                       "uniform float     iChannelTime[4];\n"
+                      "uniform vec3      iChannelResolution[4];\n"
                       "uniform vec4      iMouse;\n"
                       (uniform-sampler-type-str tex-types 0)
                       (uniform-sampler-type-str tex-types 1)
@@ -273,6 +282,7 @@
             i-channel1-loc        (GL20/glGetUniformLocation pgm-id "iChannel1")
             i-channel2-loc        (GL20/glGetUniformLocation pgm-id "iChannel2")
             i-channel3-loc        (GL20/glGetUniformLocation pgm-id "iChannel3")
+            i-channel-res-loc     (GL20/glGetUniformLocation pgm-id "iChannelResolution")
             i-date-loc            (GL20/glGetUniformLocation pgm-id "iDate")
             _ (except-gl-errors "@ end of let init-shaders")
             ]
@@ -287,6 +297,7 @@
                :i-channel-time-loc i-channel-time-loc
                :i-mouse-loc i-mouse-loc
                :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
+               :i-channel-res-loc i-channel-res-loc
                :i-date-loc i-date-loc))
       ;; we didn't load the shader, don't be drawing
       (swap! locals assoc :shader-good false))))
@@ -367,14 +378,16 @@
     format))
 
 (defn- load-texture
-  "load, bind texture from filename.  return tex-id.  returns nil if filename is nil"
+  "load, bind texture from filename.  returns a texture info vector
+   [tex-id width height z].  returns nil tex-id if filename is nil"
   ([filename]
      (let [tex-id (GL11/glGenTextures)]
        (if (cubemap-filename? filename)
          (do
            (dotimes [i 6]
-             (load-texture (cubemap-filename filename i) GL13/GL_TEXTURE_CUBE_MAP tex-id i))
-           tex-id)
+             (load-texture (cubemap-filename filename i)
+                           GL13/GL_TEXTURE_CUBE_MAP tex-id i))
+           [tex-id 0.0 0.0 0.0]) ;; cubemaps don't update w/h
          (load-texture filename GL11/GL_TEXTURE_2D tex-id 0))))
   ([filename target tex-id i]
      (if (string? filename)
@@ -407,22 +420,39 @@
                             GL11/GL_UNSIGNED_BYTE
                             buffer)
          (except-gl-errors "@ end of load-texture if-stmt")
-         tex-id)
-       (when (= filename :previous-frame)
-         ;; :previous-frame initial setup
-         (println "setting up :previous-frame texture")
-         (GL11/glBindTexture target tex-id)
-         (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
-         (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
-         (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
-         (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)
-         (except-gl-errors "@ end of load-texture else-stmt")
-         tex-id))))
+         [tex-id (.getWidth image) (.getHeight image) 1.0])
+       (if (= filename :previous-frame)
+         (do ;; :previous-frame initial setup
+           (println "setting up :previous-frame texture")
+           (GL11/glBindTexture target tex-id)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
+           (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)
+           (except-gl-errors "@ end of load-texture else-stmt")
+           ;; use negative as flag to indicate using window width, height
+           [tex-id -1.0 -1.0 1.0])
+         ;; else must be nil texture
+         [nil 0.0 0.0 0.0]))))
 
 (defn- init-textures
   [locals]
-  (let [tex-ids (map load-texture (:tex-filenames @locals))]
-    (swap! locals assoc :tex-ids tex-ids)))
+  (let [tex-infos (map load-texture (:tex-filenames @locals))
+        ;;_ (println "raw" tex-infos)
+        tex-ids   (map first tex-infos)
+        tex-whd   (map rest tex-infos)
+        tex-whd   (flatten
+                   (map #(if (< (first %) 0.0)
+                           [(:width @locals) (:height @locals) 1.0]
+                           %)
+                        tex-whd))
+        ;; update channel-res-buffer
+        _         (-> (:channel-res-buffer @locals)
+                      (.put (float-array tex-whd))
+                      (.flip))
+        ]
+    (swap! locals assoc
+           :tex-ids tex-ids)))
 
 (defn- init-gl
   [locals]
@@ -480,6 +510,7 @@
                 i-channel1-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel1")
                 i-channel2-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel2")
                 i-channel3-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel3")
+                i-channel-res-loc  (GL20/glGetUniformLocation new-pgm-id "iChannelResolution")
                 i-date-loc         (GL20/glGetUniformLocation new-pgm-id "iDate")]
             (GL20/glUseProgram new-pgm-id)
             (except-gl-errors "@ try-reload-shader useProgram")
@@ -501,6 +532,7 @@
                    :i-channel-time-loc i-channel-time-loc
                    :i-mouse-loc i-mouse-loc
                    :i-channel-loc [i-channel0-loc i-channel1-loc i-channel2-loc i-channel3-loc]
+                   :i-channel-res-loc i-channel-res-loc
                    :i-date-loc i-date-loc
                    :shader-str fs-shader)))))))
 
@@ -522,7 +554,8 @@
                 mouse-pos-x mouse-pos-y
                 mouse-ori-x mouse-ori-y
                 i-channel-time-loc i-channel-loc
-                channel-time-buffer
+                i-channel-res-loc
+                channel-time-buffer channel-res-buffer
                 old-pgm-id old-fs-id
                 tex-ids tex-types
                 user-fn
@@ -582,6 +615,7 @@
     (GL20/glUniform1i (nth i-channel-loc 1) 1)
     (GL20/glUniform1i (nth i-channel-loc 2) 2)
     (GL20/glUniform1i (nth i-channel-loc 3) 3)
+    (GL20/glUniform3  i-channel-res-loc channel-res-buffer)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
