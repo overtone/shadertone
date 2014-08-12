@@ -11,4 +11,4 @@
   ;; add per WARNING: JVM argument TieredStopAtLevel=1 is active...
   :jvm-opts ^:replace []
   ;; add leipzig for use in examples
-  :profiles {:dev {:dependencies [[leipzig "0.6.0"]]}})
+  :profiles {:dev {:dependencies [[leipzig "0.6.0" :exclusions [[overtone]]]]}})
