@@ -903,9 +903,7 @@
    start-fullscreen for simpler usage."
   [mode shader-filename-or-str-atom textures title true-fullscreen?
    user-data user-fn display-sync-hz]
-  (let [;; here we set a global window-state instead of creating a new one
-        _               (reset! the-window-state default-state-values)
-        is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
+  (let [is-filename     (not (instance? clojure.lang.Atom shader-filename-or-str-atom))
         shader-filename (if is-filename
                           shader-filename-or-str-atom)
         ;; Fix for issue 15.  Normalize the given shader-filename to the
@@ -928,6 +926,8 @@
           (swap! watcher-future
                  (fn [x] (start-watcher shader-filename))))
         (add-watch shader-str-atom :shader-str-watch watch-shader-str-atom))
+      ;; set a global window-state instead of creating a new one
+      (reset! the-window-state default-state-values)
       ;; set user data
       (reset! shader-user-data user-data)
       ;; start the requested shader
