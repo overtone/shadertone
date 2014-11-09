@@ -1,5 +1,8 @@
 Here are the steps that I followed to create the https://clojars.org/shadertone/lwjgl-natives files.
 
+This is a "note to myself" about how I accomplished this packaging step.  Ordinary users do not need to 
+perform these steps--they have already been performed for you!
+
 1) Create jar/pom
 
 http://nakkaya.com/2010/04/05/managing-native-dependencies-with-leiningen/
