@@ -83,7 +83,7 @@ Leiningen project.clj to download the library from clojars.
 
 ### Option 2: download from clojars
 
-In your project.clj, add `[shadertone "0.2.3"]` to your `:dependencies`.
+In your project.clj, add `[shadertone "0.2.4"]` to your `:dependencies`.
 
 See https://github.com/rogerallen/sot for a simple example of using
 shadertone via Leiningen.  Use the example directory in this repository for ideas.
@@ -290,7 +290,7 @@ Disable this access via `(pixel-read-disable!)`
 
 ## Changes
 
-* __0.2.4 - In progress__
+* __0.2.4 - Released Dec 11, 2014__
 
   * Enhancement: [Issue #16](https://github.com/overtone/shadertone/issues/16) - Add iChannelResolution.
   * Enhancement: [Issue #18](https://github.com/overtone/shadertone/issues/18) - Add pixel read feature.  Thanks to Circu Virtu.
