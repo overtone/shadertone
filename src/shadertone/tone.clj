@@ -9,6 +9,7 @@
   (:require [shadertone.shader :as s]
             [overtone.sc.server :as server]) ;; has a "stop" in it
   (:import (org.lwjgl BufferUtils)
+           (java.nio FloatBuffer)
            (org.lwjgl.opengl GL11 GL12 GL13 GL20 ARBTextureRg)))
 
 ;; ----------------------------------------------------------------------
@@ -113,22 +114,25 @@
                             GL12/GL_CLAMP_TO_EDGE)
       (GL11/glTexParameteri GL11/GL_TEXTURE_2D GL11/GL_TEXTURE_WRAP_T
                             GL12/GL_CLAMP_TO_EDGE)
-      (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 ARBTextureRg/GL_R32F
-                         WAVE-BUF-SIZE 2 0 GL11/GL_RED GL11/GL_FLOAT
-                         fftwave-float-buf)
+      (GL11/glTexImage2D GL11/GL_TEXTURE_2D
+                         0 ARBTextureRg/GL_R32F
+                         ^Integer WAVE-BUF-SIZE
+                         2 0 GL11/GL_RED GL11/GL_FLOAT
+                         ^FloatBuffer fftwave-float-buf)
       (GL11/glBindTexture GL11/GL_TEXTURE_2D 0))
     :pre-draw ;; grab the data and put it in the texture for drawing.
     (do
       (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
-        (-> fftwave-float-buf
-            (.put (buffer-data fft-buf))
-            (.put (buffer-data wave-buf))
+        (-> ^FloatBuffer fftwave-float-buf
+            (.put #^floats (buffer-data fft-buf))
+            (.put #^floats (buffer-data wave-buf))
             (.flip)))
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D @fftwave-tex-id)
       (GL11/glTexImage2D GL11/GL_TEXTURE_2D 0 ARBTextureRg/GL_R32F
-                         WAVE-BUF-SIZE 2 0 GL11/GL_RED GL11/GL_FLOAT
-                         fftwave-float-buf))
+                         ^Integer WAVE-BUF-SIZE
+                         2 0 GL11/GL_RED GL11/GL_FLOAT
+                         ^FloatBuffer fftwave-float-buf))
     :post-draw ;; unbind the texture
     (do
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
@@ -170,7 +174,7 @@
   (case dispatch ;; FIXME defmulti?
     :init ;; find Uniform Location
     (doseq [key (keys @tone-user-data)]
-      (let [loc (GL20/glGetUniformLocation pgm-id key)]
+      (let [loc (GL20/glGetUniformLocation ^Integer pgm-id ^String key)]
         (swap! tone-user-locs assoc key loc)))
     :pre-draw
     (doseq [key (keys @tone-user-data)]
