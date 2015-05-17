@@ -46,7 +46,7 @@ I've created a few screencast demos that you can watch:
 * [Video preview](https://www.youtube.com/watch?v=UMg8Td5Gqhk) showing the very early stages of shadertone.
 
 [Meta-eX](http://meta-ex.com/) has used Shadertone in live
-performance.  Here are a vew videos from their May, 2013 Kiev #hotcode
+performance.  Here are a few videos from their May, 2013 Kiev #hotcode
 conference performance that show how Shadertone can be used: [after
 party 1](http://vimeo.com/67487486), [main
 conference](http://vimeo.com/67487485), [after party
