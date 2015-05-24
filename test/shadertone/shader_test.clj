@@ -73,6 +73,29 @@ void main(void) {
           _ (s/stop)]
       (is good-start))))
 
+(deftest switch-str-test
+  (testing "Test switching shaders"
+    (let [shader-atom (atom "
+uniform float iGlobalTime;
+void main(void) {
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iGlobalTime));
+}")
+          _ (s/start shader-atom)
+          good-start (ask-user-tf "Did a pulsing window appear?")
+          _ (reset! shader-atom "
+void main(void) {
+  gl_FragColor = vec4(0.8,0.8,0.0,1.0);
+}")
+          good-start2 (ask-user-tf "Did a steady yellow window draw?")
+          _ (reset! shader-atom "
+uniform float iGlobalTime;
+void main(void) {
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iGlobalTime));
+}")
+          good-start3 (ask-user-tf "Did the pulsing start again?")
+          _ (s/stop)]
+      (is (and good-start good-start2 good-start3)))))
+
 (deftest error-str-test
   (testing "Test error handling"
     (let [shader-atom (atom "
