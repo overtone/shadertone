@@ -37,9 +37,9 @@
 ;; and use that FloatBuffer for texturing
 (defonce fftwave-tex-id (atom 0))
 (defonce fftwave-tex-num (atom 0))
-(defonce fftwave-float-buf (-> (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
-                               (.put init-fft-array)
-                               (.put init-wave-array)
+(defonce fftwave-float-buf (-> ^FloatBuffer (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
+                               (.put #^floats init-fft-array)
+                               (.put #^floats init-wave-array)
                                (.flip)))
 
 (defonce wave-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 wave-buf))
@@ -140,7 +140,7 @@
     :destroy ;;
     (do
       (GL11/glBindTexture GL11/GL_TEXTURE_2D 0)
-      (GL11/glDeleteTextures @fftwave-tex-id))))
+      (GL11/glDeleteTextures ^Integer @fftwave-tex-id))))
 
 (defn- fix-fftwav-texture
   "look for the :overtone-audio keyword, set the fftwave-tex-num atom"
