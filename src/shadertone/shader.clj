@@ -570,9 +570,6 @@
         cur-seconds (+ (* (.get cur-date Calendar/HOUR_OF_DAY) 60.0 60.0)
                        (* (.get cur-date Calendar/MINUTE) 60.0)
                        (.get cur-date Calendar/SECOND))]
-    (if @reload-shader
-      (try-reload-shader locals)         ; this must call glUseProgram
-      (GL20/glUseProgram pgm-id)) ; else, normal path...
 
     (except-gl-errors "@ draw before clear")
 
@@ -667,7 +664,7 @@
 
 (defn- update
   [locals]
-  (let [{:keys [width height last-time
+  (let [{:keys [width height last-time pgm-id
                 mouse-pos-x mouse-pos-y
                 mouse-clicked mouse-ori-x mouse-ori-y]} @locals
         cur-time (System/currentTimeMillis)
@@ -694,7 +691,11 @@
            :mouse-ori-x cur-mouse-ori-x
            :mouse-ori-y cur-mouse-ori-y)
     (if (:shader-good @locals)
-      (draw locals)
+      (do
+        (if @reload-shader
+          (try-reload-shader locals)  ; this must call glUseProgram
+          (GL20/glUseProgram pgm-id)) ; else, normal path...
+        (draw locals))
       ;; else clear to prevent strobing awfulness
       (do
         (GL11/glClear GL11/GL_COLOR_BUFFER_BIT)
