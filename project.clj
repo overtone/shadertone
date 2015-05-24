@@ -1,4 +1,4 @@
-(defproject shadertone "0.3.0-SNAPSHOT"
+(defproject shadertone "0.2.5-SNAPSHOT"
   :description "A clojure library designed to mix musical synthesis via Overtone and dynamic visuals a la www.shadertoy.com"
   :url "http://github.com/overtone/shadertone"
   :license {:name "MIT License"
@@ -12,4 +12,5 @@
   :jvm-opts ^:replace []
   ;; add leipzig for use in examples
   :profiles {:dev {:dependencies [[leipzig "0.6.0" :exclusions [[overtone]]]]
-                   :global-vars {*warn-on-reflection* true *assert* false}}})
+                   :global-vars {*warn-on-reflection* true *assert* false}
+                   }})
