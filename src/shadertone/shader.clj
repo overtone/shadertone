@@ -3,9 +3,9 @@
   shadertone.shader
   (:require [watchtower.core :as watcher]
             clojure.string)
-  (:import (java.awt.image BufferedImage DataBuffer DataBufferByte)
+  (:import (java.awt.image BufferedImage DataBuffer DataBufferByte WritableRaster)
            (java.io File FileInputStream)
-           (java.nio IntBuffer FloatBuffer ByteOrder)
+           (java.nio IntBuffer ByteBuffer FloatBuffer ByteOrder)
            (java.util Calendar)
            (javax.imageio ImageIO)
            (java.lang.reflect Field)
@@ -172,8 +172,8 @@
    list of available modes and fullscreen-display-modes for a list of
    fullscreen compatible modes.."
   [locals display-mode title shader-filename shader-str-atom tex-filenames true-fullscreen? user-fn display-sync-hz]
-  (let [width               (.getWidth display-mode)
-        height              (.getHeight display-mode)
+  (let [width               (.getWidth ^DisplayMode display-mode)
+        height              (.getHeight ^DisplayMode display-mode)
         pixel-format        (PixelFormat.)
         context-attributes  (-> (ContextAttribs. 2 1)) ;; GL2.1
         current-time-millis (System/currentTimeMillis)
@@ -222,7 +222,7 @@
         vbo-id              (GL15/glGenBuffers)
         _                   (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER vbo-id)
         _                   (GL15/glBufferData GL15/GL_ARRAY_BUFFER
-                                           vertices-buffer
+                                           ^FloatBuffer vertices-buffer
                                            GL15/GL_STATIC_DRAW)
         _ (except-gl-errors "@ end of init-buffers")]
     (swap! locals
@@ -237,7 +237,7 @@
        "}\n"))
 
 (defn- load-shader
-  [shader-str shader-type]
+  [^String shader-str ^Integer shader-type]
   (let [shader-id         (GL20/glCreateShader shader-type)
         _ (except-gl-errors "@ load-shader glCreateShader ")
         _                 (GL20/glShaderSource shader-id shader-str)
@@ -304,7 +304,7 @@
 
 (defn- buffer-swizzle-0123-1230
   "given a ARGB pixel array, swizzle it to be RGBA.  Or, ABGR to BGRA"
-  [^bytes data] ;; Wow!  That ^bytes changes this from 10s for a 256x256 tex to instantaneous.
+  ^bytes [^bytes data] ;; Wow!  That ^bytes changes this from 10s for a 256x256 tex to instantaneous.
   (dotimes [i (/ (alength data) 4)]
     (let [i0 (* i 4)
           i1 (inc i0)
@@ -323,11 +323,11 @@
 
 (defn- put-texture-data
   "put the data from the image into the buffer and return the buffer"
-  [buffer image swizzle-0123-1230]
-  (let [data (byte-array ^DataBufferByte
-                         (-> (.getRaster image)
-                             (.getDataBuffer)
-                             (.getData)))
+  ^ByteBuffer
+  [^ByteBuffer buffer ^BufferedImage image ^Boolean swizzle-0123-1230]
+  (let [data ^bytes (-> ^WritableRaster (.getRaster image)
+                         ^DataBufferByte (.getDataBuffer)
+                         (.getData))
         data (if swizzle-0123-1230
                (buffer-swizzle-0123-1230 data)
                data)
@@ -336,7 +336,7 @@
 
 (defn- tex-image-bytes
   "return the number of bytes per pixel in this image"
-  [image]
+  [^BufferedImage image]
   (let [image-type  (.getType image)
         image-bytes (if (or (= image-type BufferedImage/TYPE_3BYTE_BGR)
                             (= image-type BufferedImage/TYPE_INT_RGB))
@@ -357,7 +357,8 @@
 
 (defn- tex-internal-format
   "return the internal-format for the glTexImage2D call for this image"
-  [image]
+  ^Integer
+  [^BufferedImage image]
   (let [image-type      (.getType image)
         internal-format (cond
                          (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL11/GL_RGB8
@@ -368,7 +369,8 @@
 
 (defn- tex-format
   "return the format for the glTexImage2D call for this image"
-  [image]
+  ^Integer
+  [^BufferedImage image]
   (let [image-type (.getType image)
         format     (cond
                     (= image-type BufferedImage/TYPE_3BYTE_BGR)  GL12/GL_BGR
@@ -380,7 +382,7 @@
 (defn- load-texture
   "load, bind texture from filename.  returns a texture info vector
    [tex-id width height z].  returns nil tex-id if filename is nil"
-  ([filename]
+  ([^String filename]
      (let [tex-id (GL11/glGenTextures)]
        (if (cubemap-filename? filename)
          (do
@@ -389,7 +391,7 @@
                            GL13/GL_TEXTURE_CUBE_MAP tex-id i))
            [tex-id 0.0 0.0 0.0]) ;; cubemaps don't update w/h
          (load-texture filename GL11/GL_TEXTURE_2D tex-id 0))))
-  ([filename target tex-id i]
+  ([^String filename ^Integer target ^Integer tex-id ^Integer i]
      (if (string? filename)
        ;; load from file
        (let [_                (println "Loading texture:" filename)
@@ -398,12 +400,12 @@
              internal-format  (tex-internal-format image)
              format           (tex-format image)
              nbytes           (* image-bytes (.getWidth image) (.getHeight image))
-             buffer           (-> (BufferUtils/createByteBuffer nbytes)
-                                  (put-texture-data image (= image-bytes 4))
-                                  (.flip))
-             tex-image-target (if (= target GL13/GL_TEXTURE_CUBE_MAP)
-                                (+ i GL13/GL_TEXTURE_CUBE_MAP_POSITIVE_X)
-                                target)]
+             buffer           ^ByteBuffer (-> (BufferUtils/createByteBuffer nbytes)
+                                              (put-texture-data image (= image-bytes 4))
+                                              (.flip))
+             tex-image-target ^Integer (if (= target GL13/GL_TEXTURE_CUBE_MAP)
+                                         (+ i GL13/GL_TEXTURE_CUBE_MAP_POSITIVE_X)
+                                         target)]
          (GL11/glBindTexture target tex-id)
          (GL11/glTexParameteri target GL11/GL_TEXTURE_MAG_FILTER GL11/GL_LINEAR)
          (GL11/glTexParameteri target GL11/GL_TEXTURE_MIN_FILTER GL11/GL_LINEAR)
@@ -414,11 +416,11 @@
            (do ;; CUBE_MAP
              (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_S GL12/GL_CLAMP_TO_EDGE)
              (GL11/glTexParameteri target GL11/GL_TEXTURE_WRAP_T GL12/GL_CLAMP_TO_EDGE)))
-         (GL11/glTexImage2D tex-image-target 0 internal-format
-                            (.getWidth image)  (.getHeight image) 0
-                            format
+         (GL11/glTexImage2D ^Integer tex-image-target 0 ^Integer internal-format
+                            ^Integer (.getWidth image)  ^Integer (.getHeight image) 0
+                            ^Integer format
                             GL11/GL_UNSIGNED_BYTE
-                            buffer)
+                            ^ByteBuffer buffer)
          (except-gl-errors "@ end of load-texture if-stmt")
          [tex-id (.getWidth image) (.getHeight image) 1.0])
        (if (= filename :previous-frame)
@@ -447,8 +449,8 @@
                            %)
                         tex-whd))
         ;; update channel-res-buffer
-        _         (-> (:channel-res-buffer @locals)
-                      (.put (float-array tex-whd))
+        _         (-> ^FloatBuffer (:channel-res-buffer @locals)
+                      (.put ^floats (float-array tex-whd))
                       (.flip))
         ]
     (swap! locals assoc
@@ -537,7 +539,7 @@
                    :shader-str fs-shader)))))))
 
 (defn- get-pixel-value
-  [rgb-bytes]
+  [^ByteBuffer rgb-bytes]
   (let [rf (/ (float (int (bit-and 0xFF (.get rgb-bytes 0)))) 255.0)
         gf (/ (float (int (bit-and 0xFF (.get rgb-bytes 1)))) 255.0)
         bf (/ (float (int (bit-and 0xFF (.get rgb-bytes 2)))) 255.0)]
@@ -563,6 +565,10 @@
                 pixel-read-pos-x pixel-read-pos-y
                 pixel-read-data]} @locals
         cur-time    (/ (- last-time start-time) 1000.0)
+        _           (.put ^FloatBuffer channel-time-buffer 0 (float cur-time))
+        _           (.put ^FloatBuffer channel-time-buffer 1 (float cur-time))
+        _           (.put ^FloatBuffer channel-time-buffer 2 (float cur-time))
+        _           (.put ^FloatBuffer channel-time-buffer 3 (float cur-time))
         cur-date    (Calendar/getInstance)
         cur-year    (.get cur-date Calendar/YEAR)         ;; four digit year
         cur-month   (.get cur-date Calendar/MONTH)        ;; month 0-11
@@ -595,14 +601,7 @@
     ;; setup our uniform
     (GL20/glUniform3f i-resolution-loc width height 1.0)
     (GL20/glUniform1f i-global-time-loc cur-time)
-    (GL20/glUniform1 i-channel-time-loc
-                     (-> channel-time-buffer
-                         (.put (float-array
-                                [(float cur-time)
-                                 (float cur-time)
-                                 (float cur-time)
-                                 (float cur-time)]))
-                         (.flip)))
+    (GL20/glUniform1  ^Integer i-channel-time-loc ^FloatBuffer channel-time-buffer)
     (GL20/glUniform4f i-mouse-loc
                       mouse-pos-x
                       mouse-pos-y
@@ -612,7 +611,7 @@
     (GL20/glUniform1i (nth i-channel-loc 1) 1)
     (GL20/glUniform1i (nth i-channel-loc 2) 2)
     (GL20/glUniform1i (nth i-channel-loc 3) 3)
-    (GL20/glUniform3  i-channel-res-loc channel-res-buffer)
+    (GL20/glUniform3  ^Integer i-channel-res-loc ^FloatBuffer channel-res-buffer)
     (GL20/glUniform4f i-date-loc cur-year cur-month cur-day cur-seconds)
     ;; get vertex array ready
     (GL11/glEnableClientState GL11/GL_VERTEX_ARRAY)
@@ -655,14 +654,14 @@
 
     ;; read a pixel value
     (when pixel-read-enable
-      (GL11/glReadPixels pixel-read-pos-x pixel-read-pos-y
+      (GL11/glReadPixels ^Integer pixel-read-pos-x ^Integer pixel-read-pos-y
                         1 1
                         GL11/GL_RGB GL11/GL_UNSIGNED_BYTE
-                        pixel-read-data)
+                        ^ByteBuffer pixel-read-data)
       (except-gl-errors "@ draw after pixel read")
-      (reset! pixel-value (get-pixel-value pixel-read-data)))))
+      (reset! pixel-value (get-pixel-value ^ByteBuffer pixel-read-data)))))
 
-(defn- update
+(defn- update-and-draw
   [locals]
   (let [{:keys [width height last-time pgm-id
                 mouse-pos-x mouse-pos-y
@@ -676,12 +675,12 @@
                           (Mouse/getX)
                           (if cur-mouse-clicked
                             mouse-ori-x
-                            (- (Math/abs mouse-ori-x))))
+                            (- (Math/abs ^float mouse-ori-x))))
         cur-mouse-ori-y (if mouse-down-event
                           (Mouse/getY)
                           (if cur-mouse-clicked
                             mouse-ori-y
-                            (- (Math/abs mouse-ori-y))))]
+                            (- (Math/abs ^float mouse-ori-y))))]
     (swap! locals
            assoc
            :last-time cur-time
@@ -718,7 +717,7 @@
     (GL20/glDeleteProgram pgm-id)
     ;; Delete the vertex VBO
     (GL15/glBindBuffer GL15/GL_ARRAY_BUFFER 0)
-    (GL15/glDeleteBuffers vbo-id)))
+    (GL15/glDeleteBuffers ^Integer vbo-id)))
 
 (defn- run-thread
   [locals mode shader-filename shader-str-atom tex-filenames title true-fullscreen? user-fn display-sync-hz]
@@ -726,7 +725,7 @@
   (init-gl locals)
   (while (and (= :yes (:active @locals))
               (not (Display/isCloseRequested)))
-    (update locals)
+    (update-and-draw locals)
     (Display/update)
     (Display/sync (:display-sync-hz @locals)))
   (destroy-gl locals)
@@ -759,7 +758,7 @@
             (for [fn full-filenames]
               (if (or (nil? fn)
                       (and (keyword? fn) (= fn :previous-frame))
-                      (.exists (File. fn)))
+                      (.exists (File. ^String fn)))
                 true
                 (do
                   (println "ERROR:" fn "does not exist.")
@@ -790,7 +789,7 @@
     (reset! watcher-just-started false)
     ;; otherwise do the reload check
     (doseq [f files]
-      (when (= (.getPath f) shader-filename)
+      (when (= (.getPath ^File f) shader-filename)
         ;; set a flag that the opengl thread will use
         (reset! reload-shader true)))))
 
@@ -798,7 +797,7 @@
   "create a watch for glsl shaders in the directory and return the global
   future atom for that watcher"
   [shader-filename]
-  (let [dir (.getParent (File. shader-filename))]
+  (let [dir (.getParent (File. ^String shader-filename))]
     (reset! watcher-just-started true)
     (watcher/watcher
      [dir]
@@ -824,7 +823,7 @@
   (case dispatch ;; FIXME defmulti?
     :init ;; find Uniform Location
     (doseq [key (keys @shader-user-data)]
-      (let [loc (GL20/glGetUniformLocation pgm-id key)]
+      (let [loc (GL20/glGetUniformLocation ^Integer pgm-id ^String key)]
         (swap! shader-user-locs assoc key loc)))
     :pre-draw
     (doseq [key (keys @shader-user-data)]
@@ -851,7 +850,7 @@
   "Returns a seq of display modes sorted by resolution size with highest
    resolution first and lowest last."
   []
-  (sort (fn [a b]
+  (sort (fn [^DisplayMode a ^DisplayMode b]
           (let [res-a       (* (.getWidth a)
                                (.getHeight a))
                 res-b       (* (.getWidth b)
@@ -867,7 +866,7 @@
   "Returns a seq of fullscreen compatible display modes sorted by
    resolution size with highest resolution first and lowest last."
   []
-  (filter #(.isFullscreenCapable %) (display-modes)))
+  (filter #(.isFullscreenCapable ^DisplayMode %) (display-modes)))
 
 (defn undecorate-display!
   "All future display windows will be undecorated (i.e. no title bar)"
@@ -912,7 +911,7 @@
         ;; and windows returns this as path\to\shader.glsl from .getPath, this
         ;; change should make comparison to path\to\shader.glsl work.
         shader-filename (if (and is-filename (not (nil? shader-filename)))
-                          (.getPath (File. shader-filename)))
+                          (.getPath (File. ^String shader-filename)))
         shader-str-atom (if-not is-filename
                           shader-filename-or-str-atom
                           (atom nil))

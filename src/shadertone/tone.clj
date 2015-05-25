@@ -38,8 +38,8 @@
 (defonce fftwave-tex-id (atom 0))
 (defonce fftwave-tex-num (atom 0))
 (defonce fftwave-float-buf (-> ^FloatBuffer (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
-                               (.put #^floats init-fft-array)
-                               (.put #^floats init-wave-array)
+                               (.put ^floats init-fft-array)
+                               (.put ^floats init-wave-array)
                                (.flip)))
 
 (defonce wave-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 wave-buf))
@@ -124,8 +124,8 @@
     (do
       (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
         (-> ^FloatBuffer fftwave-float-buf
-            (.put #^floats (buffer-data fft-buf))
-            (.put #^floats (buffer-data wave-buf))
+            (.put ^floats (buffer-data fft-buf))
+            (.put ^floats (buffer-data wave-buf))
             (.flip)))
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D @fftwave-tex-id)
