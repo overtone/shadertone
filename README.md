@@ -293,7 +293,7 @@ Disable this access via `(pixel-read-disable!)`
 * __0.2.5 - Released May 26, 2015__
 
   * Bugfix: [Issue #28](https://github.com/overtone/shadertone/issues/28) - Fix crash on reloading shaders.  Thanks to [hlolli](https://github.com/hlolli)
-  * Enhancement: [Pull Request #27](https://github.com/overtone/shadertone/issues/27), [Issue #29](https://github.com/overtone/shadertone/issues/29) - Get rid of reflection issues.  Thanks to [josephwilk](https://github.com/josephwilk)
+  * Enhancement: [Pull Request #26](https://github.com/overtone/shadertone/issues/26), [Issue #29](https://github.com/overtone/shadertone/issues/29) - Get rid of reflection issues.  Thanks to [josephwilk](https://github.com/josephwilk)
   * Typo: [Pull Request #27](https://github.com/overtone/shadertone/issues/27) - Thanks to [dvberkel](https://github.com/dvberkel)
 
 * __0.2.4 - Released Dec 11, 2014__
