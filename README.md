@@ -83,7 +83,7 @@ Leiningen project.clj to download the library from clojars.
 
 ### Option 2: download from clojars
 
-In your project.clj, add [![Clojars Project](http://clojars.org/shadertone/latest-version.svg)] to your `:dependencies`.
+In your project.clj, add ![Clojars Project](http://clojars.org/shadertone/latest-version.svg) to your `:dependencies`.
 
 See https://github.com/rogerallen/sot for a simple example of using
 shadertone via Leiningen.  Use the example directory in this repository for ideas.
