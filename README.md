@@ -83,7 +83,7 @@ Leiningen project.clj to download the library from clojars.
 
 ### Option 2: download from clojars
 
-In your project.clj, add `[shadertone "0.2.4"]` to your `:dependencies`.
+In your project.clj, add [![Clojars Project](http://clojars.org/shadertone/latest-version.svg)] to your `:dependencies`.
 
 See https://github.com/rogerallen/sot for a simple example of using
 shadertone via Leiningen.  Use the example directory in this repository for ideas.
@@ -289,6 +289,12 @@ checking here.
 Disable this access via `(pixel-read-disable!)`
 
 ## Changes
+
+* __0.2.5 - Released May 26, 2015__
+
+  * Bugfix: [Issue #28](https://github.com/overtone/shadertone/issues/28) - Fix crash on reloading shaders.  Thanks to [hlolli](https://github.com/hlolli)
+  * Enhancement: [Pull Request #27](https://github.com/overtone/shadertone/issues/27), [Issue #29](https://github.com/overtone/shadertone/issues/29) - Get rid of reflection issues.  Thanks to [josephwilk](https://github.com/josephwilk)
+  * Typo: [Pull Request #27](https://github.com/overtone/shadertone/issues/27) - Thanks to [dvberkel](https://github.com/dvberkel)
 
 * __0.2.4 - Released Dec 11, 2014__
 
