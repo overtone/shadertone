@@ -100,6 +100,27 @@ Overtone affect the color, you'll want to use inputs like
 power of modern GPUs, it is somewhat astonishing what you can do in
 1/60th of second.
 
+The code needs to be in a GLSL format with a `main()` routine that
+returns the `gl_FragColor`.  Shadertoy.com has changed their
+syntax to make translation just a bit more work.  You will need to
+translate Image shaders formatted like this:
+
+```c
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+  ...
+  fragColor = vec4(...);
+}
+```
+
+To GLSL fragment shaders formatted like this:
+
+```c
+void main(void) {
+  ...
+  gl_FragColor = vec4(...);
+}
+```
+
 One of the creators of www.shadertoy.com, Iñigo Quílez, has a website
 that explains a variety of techniques to create interesting Fragment
 Shaders at http://www.iquilezles.org/www/index.htm.  He also has some
@@ -276,8 +297,8 @@ lisp into a string for passing to the `start` function.
 
 ### Reading Pixels from the Framebuffer
 
-__NEW in 0.2.4__, you can read back a pixel value from your frame
-either via `(shadertone.shader/pixel)` function or by accessing the
+You can read back a pixel value from your frame either via
+`(shadertone.shader/pixel)` function or by accessing the
 `@shadertone.shader/pixel-value` atom directly.  With this feature,
 your fragment-shader could control your synths!  Thanks to Circu Virtu
 on the Google Group for this idea.
@@ -289,6 +310,10 @@ checking here.
 Disable this access via `(pixel-read-disable!)`
 
 ## Changes
+
+* __0.2.6 - Released Sept ?, 2015__
+
+  * Bugfix: [Issue #31](https://github.com/overtone/shadertone/issues/31) - Fix unary math ops and note the shadertoy.com syntax change.  Thanks to [hlolli](https://github.com/hlolli)
 
 * __0.2.5 - Released May 26, 2015__
 

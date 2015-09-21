@@ -35,6 +35,34 @@ gl_FragColor = vec4(uv.x,uv.y,0.0,1.0);
           ]
       (is (= test-str gold-str)))))
 
+(deftest unary-test
+  (testing "A simple shader."
+    (let [_ (defshader test-shader
+              '((uniform vec3 iResolution)
+                (defn void main []
+                  (setq vec2 uv (/ gl_FragCoord.xy iResolution.xy))
+                  (setq float vs (- uv.y))
+                  (setq float va (+ vs))
+                  (setq float vm (* va))
+                  (setq float vd (/ vm))
+                  (setq float vn (- vd))
+                  (setq gl_FragColor (vec4 uv.x vn 0.0 1.0)))))
+          test-str (str test-shader)
+          gold-str
+"uniform vec3 iResolution;
+void main(void) {
+vec2 uv = (gl_FragCoord.xy / iResolution.xy);
+float vs = (0.0 - uv.y);
+float va = (0.0 + vs);
+float vm = (1.0 * va);
+float vd = (1.0 / vm);
+float vn = (0.0 - vd);
+gl_FragColor = vec4(uv.x,vn,0.0,1.0);
+}
+"
+          ]
+      (is (= test-str gold-str)))))
+
 (deftest wave-test
   (testing "wave shader"
     (let [_ (defshader test-shader

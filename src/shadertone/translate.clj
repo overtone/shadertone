@@ -105,10 +105,17 @@
 
 (defn- shader-walk-infix [x]
   ;;(println "shader-walk-infix-0:" x)
-  (let [fn-str (format "(%s)"
+  (let [identity-value (case (str (first x))
+                           "*" 1.0
+                           "/" 1.0
+                           0.0)
+        vals   (if (> (count (rest x)) 1)
+                 (rest x)
+                 (cons identity-value (rest x)))
+        fn-str (format "(%s)"
                        (string/join
                         (format " %s " (str (first x)))
-                        (map #(shader-walk (list %)) (rest x))))]
+                        (map #(shader-walk (list %)) vals)))]
     ;;(println "shader-walk-infix-1:" fn-str)
     fn-str))
 
@@ -252,6 +259,19 @@
       (defn void main []
             (setq vec2 uv (/ gl_FragCoord.xy iResolution.xy))
             (setq gl_FragColor (vec4 uv.x uv.y 0.0 1.0)))))
+  (print simple)
+
+  ;; simple unary test
+  (defshader simple
+    '((uniform vec3 iResolution)
+      (defn void main []
+        (setq vec2 uv (/ gl_FragCoord.xy iResolution.xy))
+        (setq float vs (- uv.y))
+        (setq float va (+ vs))
+        (setq float vm (* va))
+        (setq float vd (/ vm))
+        (setq float vn (- 0.0 vd))
+        (setq gl_FragColor (vec4 uv.x vn 0.0 1.0)))))
   (print simple)
 
   ;; preliminary translation of wave.glsl

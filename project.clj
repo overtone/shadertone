@@ -1,4 +1,4 @@
-(defproject shadertone "0.3.0-SNAPSHOT"
+(defproject shadertone "0.2.6-SNAPSHOT"
   :description "A clojure library designed to mix musical synthesis via Overtone and dynamic visuals a la www.shadertoy.com"
   :url "http://github.com/overtone/shadertone"
   :license {:name "MIT License"
