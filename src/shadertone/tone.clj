@@ -94,6 +94,13 @@
 (defonce fft-bus-synth
   (bus-freqs->buf [:after (foundation-monitor-group)] 0 fft-buf))
 
+(defn- buffer-data-read
+  "Read buffer data from internal or external server, depending on the operation mode"
+  [buf]
+  (if (server/internal-server?)
+    (buffer-data buf)
+    (buffer-read buf)))
+
 ;; user-fn for shader display of waveform and fft
 (defn tone-fftwave-fn
   "The shader display will call this routine on every draw.  Update
@@ -124,8 +131,8 @@
     (do
       (if (buffer-live? wave-buf) ;; FIXME? assume fft-buf is live
         (-> ^FloatBuffer fftwave-float-buf
-            (.put ^floats (buffer-data fft-buf))
-            (.put ^floats (buffer-data wave-buf))
+            (.put ^floats (buffer-data-read fft-buf))
+            (.put ^floats (buffer-data-read wave-buf))
             (.flip)))
       (GL13/glActiveTexture (+ GL13/GL_TEXTURE0 @fftwave-tex-num))
       (GL11/glBindTexture GL11/GL_TEXTURE_2D @fftwave-tex-id)
