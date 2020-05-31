@@ -50,10 +50,10 @@ void main(void)
 
     // But, we don't want the full screen to show the current FFT.  We
     // want to only update the data under the cursor.  So, we use the
-    // iGlobalTime input to find a particular X value for a column we
+    // iTime input to find a particular X value for a column we
     // want to update.  The following creates a value that ranges from
     // [0,1024) over 30 seconds.
-    int   cur_x  = int(fract(iGlobalTime/SEC_PER_SCREEN)*iResolution.x);
+    int   cur_x  = int(fract(iTime/SEC_PER_SCREEN)*iResolution.x);
 
     // For the data that is NOT under the cursor, we want the older
     // sonogram data that we rendered into the framebuffer.  get that

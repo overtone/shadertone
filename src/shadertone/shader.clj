@@ -136,9 +136,9 @@
   [locals filename]
   (let [{:keys [tex-types]} @locals
         ;;file-str (slurp filename)
-        file-str (str "#version 120\n"
+        file-str (str "#version 140\n"
                       "uniform vec3      iResolution;\n"
-                      "uniform float     iGlobalTime;\n"
+                      "uniform float     iTime;\n"
                       "uniform float     iChannelTime[4];\n"
                       "uniform vec3      iChannelResolution[4];\n"
                       "uniform vec4      iMouse;\n"
@@ -231,9 +231,10 @@
            :vertices-count vertices-count)))
 
 (def vs-shader
-  (str "#version 120\n"
+  (str "#version 140\n"
+       "in vec3 pos;\n"
        "void main(void) {\n"
-       "    gl_Position = gl_Vertex;\n"
+       "    gl_Position = vec4(pos, 1.0);\n"
        "}\n"))
 
 (defn- load-shader
@@ -273,9 +274,12 @@
             _                     (when (== gl-link-status GL11/GL_FALSE)
                                     (println "ERROR: Linking Shaders:")
                                     (println (GL20/glGetProgramInfoLog pgm-id 10000)))
+            _ (except-gl-errors "@ let before EnableVertexAttribArray")
+            _                     (GL20/glVertexAttribPointer 0, 4, GL11/GL_FLOAT, false, 16, 0)
+            _                     (GL20/glEnableVertexAttribArray 0)
             _ (except-gl-errors "@ let before GetUniformLocation")
             i-resolution-loc      (GL20/glGetUniformLocation pgm-id "iResolution")
-            i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iGlobalTime")
+            i-global-time-loc     (GL20/glGetUniformLocation pgm-id "iTime")
             i-channel-time-loc    (GL20/glGetUniformLocation pgm-id "iChannelTime")
             i-mouse-loc           (GL20/glGetUniformLocation pgm-id "iMouse")
             i-channel0-loc        (GL20/glGetUniformLocation pgm-id "iChannel0")
@@ -505,7 +509,7 @@
             (except-gl-errors "@ try-reload-shader useProgram2"))
           (let [_ (println "Reloading shader:" shader-filename)
                 i-resolution-loc   (GL20/glGetUniformLocation new-pgm-id "iResolution")
-                i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iGlobalTime")
+                i-global-time-loc  (GL20/glGetUniformLocation new-pgm-id "iTime")
                 i-channel-time-loc (GL20/glGetUniformLocation new-pgm-id "iChannelTime")
                 i-mouse-loc        (GL20/glGetUniformLocation new-pgm-id "iMouse")
                 i-channel0-loc     (GL20/glGetUniformLocation new-pgm-id "iChannel0")

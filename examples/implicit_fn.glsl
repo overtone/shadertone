@@ -87,7 +87,7 @@ vec3 color4(vec2 rt)
 vec3 color5(vec2 rt)
 {
     float u = fract2(abs(fn(rt)));
-    float v = fract2(iGlobalTime/50);
+    float v = fract2(iTime/50);
     return texture2D(iChannel0,vec2(u,v)).xyz;
 }
 // ======================================================================
@@ -96,12 +96,12 @@ void main(void)
 {
     // select one
     vec2 uv = 3*getScreenUV(gl_FragCoord.xy);
-    //vec2 uv = 2.5*(0.1+fract2(iGlobalTime/5))*getScreenUV(gl_FragCoord.xy); // zoom!
+    //vec2 uv = 2.5*(0.1+fract2(iTime/5))*getScreenUV(gl_FragCoord.xy); // zoom!
 
     vec2 rt = getPolar(uv);
 
     // uncomment to spin...
-    //rt.y += iGlobalTime/4.0;
+    //rt.y += iTime/4.0;
 
     // Select one colorN routine at a time
     //vec3 c = vec3(uv.x,uv.y,0);  // see x, y

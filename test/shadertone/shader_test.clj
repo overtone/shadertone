@@ -21,10 +21,10 @@
   (testing "Simple program string acceptance test"
     (let [color (atom [1.0 0.5 0.0 1.0])
           _ (s/start (atom "
-uniform float iGlobalTime;
+uniform float iTime;
 uniform vec4 iColor;
 void main(void) {
-  gl_FragColor = iColor * abs(sin(iGlobalTime));
+  gl_FragColor = iColor * abs(sin(iTime));
 }")
                      :user-data { "iColor" color})
           good-start (ask-user-tf "Did a pulsing orange window appear?")
@@ -63,10 +63,10 @@ void main(void) {
   (testing "Simple fullscreen program string acceptance test"
     (let [color (atom [1.0 0.5 0.0 1.0])
           _ (s/start-fullscreen (atom "
-uniform float iGlobalTime;
+uniform float iTime;
 uniform vec4 iColor;
 void main(void) {
-  gl_FragColor = iColor * abs(sin(iGlobalTime));
+  gl_FragColor = iColor * abs(sin(iTime));
 }")
                                 :user-data { "iColor" color})
           good-start (ask-user-tf "Did a pulsing orange fullscreen window appear?")
@@ -76,9 +76,9 @@ void main(void) {
 (deftest switch-str-test
   (testing "Test switching shaders"
     (let [shader-atom (atom "
-uniform float iGlobalTime;
+uniform float iTime;
 void main(void) {
-  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iGlobalTime));
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iTime));
 }")
           _ (s/start shader-atom)
           good-start (ask-user-tf "Did a pulsing window appear?")
@@ -88,9 +88,9 @@ void main(void) {
 }")
           good-start2 (ask-user-tf "Did a steady yellow window draw?")
           _ (reset! shader-atom "
-uniform float iGlobalTime;
+uniform float iTime;
 void main(void) {
-  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iGlobalTime));
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iTime));
 }")
           good-start3 (ask-user-tf "Did the pulsing start again?")
           _ (s/stop)]
@@ -99,22 +99,22 @@ void main(void) {
 (deftest error-str-test
   (testing "Test error handling"
     (let [shader-atom (atom "
-uniform float iGlobalTime;
+uniform float iTime;
 void main(void) {
-  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * noise * abs(sin(iGlobalTime));
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * noise * abs(sin(iTime));
 }")
           _ (s/start shader-atom)
           good-start (ask-user-tf "Did an error occur? That is expected, but we should draw a black screen and not throw an exception.")
           _ (reset! shader-atom "
-uniform float iGlobalTime;
+uniform float iTime;
 void main(void) {
-  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iGlobalTime));
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * abs(sin(iTime));
 }")
           good-start2 (ask-user-tf "Did a pulsing window appear?")
           _ (reset! shader-atom "
-uniform float iGlobalTime;
+uniform float iTime;
 void main(void) {
-  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * noise * abs(sin(iGlobalTime));
+  gl_FragColor = vec4(1.0,1.0,1.0,1.0) * noise * abs(sin(iTime));
 }")
           good-start3 (ask-user-tf "Did another error occur? That is expected, but we should just keep playing the pulsing window.")
           _ (s/stop)]
@@ -124,25 +124,25 @@ void main(void) {
   (testing "Test error handling with uniforms"
     (let [color (atom [1.0 0.5 0.0 1.0])
           shader-atom (atom "
-uniform float iGlobalTime;
+uniform float iTime;
 //uniform vec4 iColor;
 void main(void) {
-  gl_FragColor = iColor * abs(sin(iGlobalTime));
+  gl_FragColor = iColor * abs(sin(iTime));
 }")
           _ (s/start shader-atom :user-data { "iColor" color})
           good-start (ask-user-tf "Did an error occur? That is expected, but we should draw a black screen and not throw an exception.")
           _ (reset! shader-atom "
-uniform float iGlobalTime;
+uniform float iTime;
 uniform vec4 iColor;
 void main(void) {
-  gl_FragColor = iColor * abs(sin(iGlobalTime));
+  gl_FragColor = iColor * abs(sin(iTime));
 }")
           good-start2 (ask-user-tf "Did a pulsing orange window appear?")
           _ (reset! shader-atom "
-uniform float iGlobalTime;
+uniform float iTime;
 //uniform vec4 iColor;
 void main(void) {
-  gl_FragColor = iColor * abs(sin(iGlobalTime));
+  gl_FragColor = iColor * abs(sin(iTime));
 }")
           good-start3 (ask-user-tf "Did another error occur? That is expected, but we should just keep playing the pulsing window.")
           _ (s/stop)]

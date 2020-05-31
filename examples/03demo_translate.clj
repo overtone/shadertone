@@ -5,10 +5,10 @@
 ;; translate this Clojure-like code to a GLSL shader
 (trans/defshader simple
   '((uniform vec3  iResolution)
-    (uniform float iGlobalTime)
+    (uniform float iTime)
     (defn void main []
       (setq vec2 uv (/ gl_FragCoord.xy iResolution.xy))
-      (setq float b (abs (sin iGlobalTime)))
+      (setq float b (abs (sin iTime)))
       (setq gl_FragColor (vec4 uv.x uv.y b 1.0)))))
 ;;(print simple)
 

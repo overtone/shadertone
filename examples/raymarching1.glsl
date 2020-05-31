@@ -95,9 +95,9 @@ void main(void)
     vec2 window_pos        = -1.0 + 2.0*(gl_FragCoord.xy/iResolution.xy);
     vec3 camera_up         = vec3(0,1,0);
     vec3 camera_lookat     = vec3(0,0,0);
-    vec3 camera_pos        = vec3(5.0*cos(0.1*iGlobalTime),
+    vec3 camera_pos        = vec3(5.0*cos(0.1*iTime),
                                 5.0,
-                                5.0*sin(0.1*iGlobalTime));
+                                5.0*sin(0.1*iTime));
     vec3 light_pos         = vec3(5.0,10.0,5.0);
     vec3 norm_camera_dir   = normalize(camera_lookat-camera_pos);
     vec3 u                 = normalize(cross(camera_up,norm_camera_dir));

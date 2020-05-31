@@ -3,16 +3,16 @@ uniform float t0;
 void main(void)
 {
     vec3  c      = vec3(0.0);
-    float act    = abs(cos(iGlobalTime));
+    float act    = abs(cos(iTime));
     vec2  uv     = gl_FragCoord.xy/iResolution.xy;
     float aspect = iResolution.x / iResolution.y;
     vec2  ar     = vec2( (aspect < 1.0) ? 1.0/aspect : 1.0,
                          (aspect < 1.0) ? 1.0 : 1.0/aspect);
     uv *= ar;
-    uv *= (3.0 + 2.0*sin(iGlobalTime/3.0));
+    uv *= (3.0 + 2.0*sin(iTime/3.0));
     for(int i = 0; i < 6; i++) {
-        vec2 xy  = vec2(sin(iGlobalTime-11.0*abs(t0)+6.28*(i/6.0)),
-                        cos(iGlobalTime+23.0*abs(t0)+6.28*(i/6.0)));
+        vec2 xy  = vec2(sin(iTime-11.0*abs(t0)+6.28*(i/6.0)),
+                        cos(iTime+23.0*abs(t0)+6.28*(i/6.0)));
         vec2 uv2 = uv - 2.0*ar + xy;
         float r  = sqrt(uv2.x*uv2.x + uv2.y*uv2.y);
         c += (vec3(0.0,0.15*(1.0-act),0.1*(act)) *

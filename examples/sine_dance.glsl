@@ -8,7 +8,7 @@ void main(void)
     // equvalent to the video's spec.y, I think
     float spec_y = 0.01 + 5.0*iOvertoneVolume;
     float col = 0.0;
-    uv.x += sin(iGlobalTime * 6.0 + uv.y*1.5)*spec_y;
+    uv.x += sin(iTime * 6.0 + uv.y*1.5)*spec_y;
     col += abs(0.066/uv.x) * spec_y;
     gl_FragColor = vec4(col,col,col,1.0);
 }
