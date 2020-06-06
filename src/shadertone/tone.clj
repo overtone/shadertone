@@ -83,7 +83,7 @@
         signal    (in in-bus 1)
         ;; found 0.5 window gave less periodic noise
         chain     (fft fft-buf signal 0.5 HANN)
-        chain     (pv-mag-smear chain 10)
+        chain     (pv-mag-smear chain 7)
         ;; indexer = 2, 4, 6, ..., N-4, N-2
         indexer   (+ n-samples 2
                      (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
@@ -92,10 +92,14 @@
         ;; convert real,imag pairs to magnitude
 
         s0        (buf-rd 1 fft-buf indexer 1 1)
-        ;s0        (* 0.00285 s0)
-        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
-        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))
-        lin-mag   (pow 10.0 (/ (* 10.0 (log2 s0 #_lin-mag)) 33.22))
+        s0 (* 0.03 s0)
+        lin-mag s0
+;        s0        (* 0.285 s0)
+;        s0        (+ 0 (* 0.02 (ampdb s0)))
+;        s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
+;        s1 (* 0.0285 s1)
+;        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))
+        lin-mag   (pow 10.0 (/ (log10 lin-mag) 3.322))
 
         ;lin-mag   (buf-rd 1 fft-buf indexer 1 1)
         ;s0        (* 0.00285 s0)
