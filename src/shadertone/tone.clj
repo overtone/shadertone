@@ -94,6 +94,25 @@
 (defonce fft-bus-synth
   (bus-freqs->buf [:after (foundation-monitor-group)] 0 fft-buf))
 
+
+
+
+(def apache-fft
+  (org.apache.commons.math3.transform.FastFourierTransformer. org.apache.commons.math3.transform.DftNormalization/STANDARD))
+
+(defn afft
+  [samples]
+  (let [n (count samples)
+        samples (into-array Double/TYPE samples)]
+    (->> samples
+         (#(.transform apache-fft % org.apache.commons.math3.transform.TransformType/FORWARD))
+         (take (/ n 2))
+         rest
+         (map #(* (/ 2.0 n) (.abs %)))
+         vec)))
+
+(afft (into-array Double/TYPE [0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1 0 1 0 -1]))
+
 ;; user-fn for shader display of waveform and fft
 (defn tone-fftwave-fn
   "The shader display will call this routine on every draw.  Update
