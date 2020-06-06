@@ -26,23 +26,26 @@
 ;; Grab Waveform & FFT data and send it to the iChannel[0] texture.
 ;; data capture fns cribbed from overtone/gui/scope.clj
 (defonce WAVE-BUF-SIZE 4096) ; stick to powers of 2 for fft and GL
+(defonce FFT-BUF-SIZE (* 1 WAVE-BUF-SIZE)) ; stick to powers of 2 for fft and GL
 (defonce WAVE-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
+(defonce FFT-BUF-SIZE-2X (* 2 WAVE-BUF-SIZE))
 (defonce FFTWAVE-BUF-SIZE (* 2 WAVE-BUF-SIZE))
 (defonce init-wave-array (float-array (repeat WAVE-BUF-SIZE 0.0)))
-(defonce init-fft-array (float-array (repeat WAVE-BUF-SIZE 0.0)))
+(defonce init-fft-array (float-array (repeat FFT-BUF-SIZE 0.0)))
 ;; synths pour data into these bufs
 (defonce wave-buf (buffer WAVE-BUF-SIZE))
-(defonce fft-buf (buffer WAVE-BUF-SIZE))
+(defonce fft-buf (buffer FFT-BUF-SIZE))
 ;; on request from ogl, stuff wave-buf & fft-buf into fftwave-float-buf
 ;; and use that FloatBuffer for texturing
 (defonce fftwave-tex-id (atom 0))
 (defonce fftwave-tex-num (atom 0))
 (defonce fftwave-float-buf (-> ^FloatBuffer (BufferUtils/createFloatBuffer FFTWAVE-BUF-SIZE)
-                               (.put ^floats init-fft-array)
+                               (.put ^floats init-wave-array)
                                (.put ^floats init-wave-array)
                                (.flip)))
 
 (defonce wave-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 wave-buf))
+;(defonce fft-bus-synth (bus->buf [:after (foundation-monitor-group)] 0 fft-buf))
 
 (defn- ensure-internal-server!
   "Throws an exception if the server isn't internal - wave relies on
@@ -72,23 +75,35 @@
 ;;
 ;; http://www.physik.uni-wuerzburg.de/~praktiku/Anleitung/Fremde/ANO14.pdf
 (defsynth bus-freqs->buf
-  [in-bus 0 scope-buf 1 fft-buf-size WAVE-BUF-SIZE-2X rate 2]
+  [in-bus 0 scope-buf 1 fft-buf-size FFT-BUF-SIZE-2X rate 2]
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
         ;; drop DC & nyquist samples
         n-samples (* 0.5 (- (buf-samples:ir fft-buf) 2))
         signal    (in in-bus 1)
         ;; found 0.5 window gave less periodic noise
-        freqs     (fft fft-buf signal 0.5 HANN)
+        chain     (fft fft-buf signal 0.5 HANN)
+        chain     (pv-mag-smear chain 10)
         ;; indexer = 2, 4, 6, ..., N-4, N-2
         indexer   (+ n-samples 2
                      (* (lf-saw (/ rate (buf-dur:ir fft-buf)) phase) ;; what are limits to this rate?
                         n-samples))
         indexer   (round indexer 2) ;; always point to the real sample
         ;; convert real,imag pairs to magnitude
+
         s0        (buf-rd 1 fft-buf indexer 1 1)
+        ;s0        (* 0.00285 s0)
         s1        (buf-rd 1 fft-buf (+ 1 indexer) 1 1) ; kibit keep
-        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))]
+        lin-mag   (sqrt (+ (* s0 s0) (* s1 s1)))
+        lin-mag   (pow 10.0 (/ (* 10.0 (log2 s0 #_lin-mag)) 33.22))
+
+        ;lin-mag   (buf-rd 1 fft-buf indexer 1 1)
+        ;s0        (* 0.00285 s0)
+;        lin-mag   (+ 0 (* 0.02 (ampdb s0)))
+        ; dbify
+        ;lin-mag   (pow 10.0 (/ (* 10.0 (log2 lin-mag)) 33.22))
+        ;log-mag   ;(* 2 (pow n-samples (lf-saw (/ rate (buf-dur:ir fft-buf)) phase 0.5 0.5)))
+        ]
     (record-buf lin-mag scope-buf)))
 
 (defonce fft-bus-synth
