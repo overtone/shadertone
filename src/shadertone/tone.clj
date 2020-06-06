@@ -79,7 +79,7 @@
   (let [phase     (- 1 (* rate (reciprocal fft-buf-size)))
         fft-buf   (local-buf fft-buf-size 1)
         ;; drop DC & nyquist samples
-        n-samples (* 0.5 (- (buf-samples:ir fft-buf) 2))
+        n-samples (* 0.25 (- (buf-samples:ir fft-buf) 2))
         signal    (in in-bus 1)
         ;; found 0.5 window gave less periodic noise
         chain     (fft fft-buf signal 0.5 HANN)
