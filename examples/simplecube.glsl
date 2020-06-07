@@ -20,7 +20,7 @@ void main(void) {
     float roty = 0.0;
     float rotx = 0.0;
     if (iMouse.z <= 0.0) {
-        roty = iGlobalTime*0.25;
+        roty = iTime*0.25;
     } else {
         rotx = (mouse.y-0.5)*3.0;
         roty = -(mouse.x-0.5)*6.0;

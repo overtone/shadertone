@@ -30,7 +30,7 @@ vec2 point(vec2 src)
 
 float wave(vec2 p, float th)
 {
-    float t = fract(iGlobalTime/tscale);
+    float t = fract(iTime/tscale);
     t *= 2.0 * PI;
     float sth = sin(th);
     float cth = cos(th);

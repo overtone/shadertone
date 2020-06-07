@@ -4,10 +4,12 @@
   :license {:name "MIT License"
             :url "https://github.com/overtone/shadertone/blob/master/LICENSE"}
   :dependencies [;; 1.6.0 causes error with *warn-on-reflection*.  1.7.0-RC1 works
-                 [org.clojure/clojure "1.5.1"]
+                 [org.clojure/clojure "1.10.1"]
                  [hello_lwjgl/lwjgl   "2.9.1"]
-                 [overtone            "0.9.1"]
-                 [watchtower          "0.1.1"]]
+                 [overtone            "0.10.7-SNAPSHOT"]
+                 [watchtower          "0.1.1"]
+
+                 [org.apache.commons/commons-math3 "3.6.1"]]
   :main ^{:skip-aot true} shadertone.core
   ;; add per WARNING: JVM argument TieredStopAtLevel=1 is active...
   :jvm-opts ^:replace []

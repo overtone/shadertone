@@ -16,7 +16,7 @@ void main(void)
     vec2  uv     = gl_FragCoord.xy/iResolution.xy;
     float wave   = texture2D(iChannel0,vec2(uv.x,0.75)).x;
     wave         = smoothbump(0.0,(6.0/iResolution.y), wave + uv.y - 0.5);
-    vec3  wc     = wave*hsv2rgb(fract(iGlobalTime/2.0),0.9,0.9);
+    vec3  wc     = wave*hsv2rgb(fract(iTime/2.0),0.9,0.9);
 
     // zoom into the previous frame
     float zf     = -0.05;

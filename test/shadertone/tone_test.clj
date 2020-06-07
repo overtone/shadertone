@@ -31,9 +31,9 @@
   (testing "Simple acceptance test"
     (let [s (simple-synth)
           _ (t/start (atom "
-uniform float iGlobalTime;
+uniform float iTime;
 void main(void) {
-  gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iGlobalTime));
+  gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iTime));
 }"))
           good-start (ask-user-tf "Do you hear a siren-ish sound AND did a pulsing orange window appear?")
           _ (ctl s :gate 0)
@@ -53,9 +53,9 @@ void main(void) {
   (testing "Simple acceptance test"
     (let [s (simple-synth)
           _ (t/start-fullscreen (atom "
-uniform float iGlobalTime;
+uniform float iTime;
 void main(void) {
-  gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iGlobalTime));
+  gl_FragColor = vec4(1.0,0.5,0.0,1.0) * abs(sin(iTime));
 }"))
           good-start (ask-user-tf "Do you hear a siren-ish sound AND did a fullscreen pulsing orange window appear?")
           _ (ctl s :gate 0)
